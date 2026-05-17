@@ -27,3 +27,12 @@ Phaser 3 + TypeScript で開発された、スマートフォン対応の「細�
 - **言語**: TypeScript (v6.x)
 - **ビルドツール**: Vite (v8.x)
 - **デプロイ**: GitHub Actions + GitHub Pages
+
+---
+
+## 🚀 ライブデモ
+
+以下のリンクから直接ブラウザでプレイ可能です！
+
+👉 **[デモをプレイする](https://hkojimanbou.github.io/bacteria-buster/)**
+
