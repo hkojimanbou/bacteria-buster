@@ -46,6 +46,11 @@ export class Capsule {
   /** 回転状態 0〜3 */
   public rotation: number;
 
+  /** 落下進捗 (0.0〜1.0) */
+  public fallProgress: number = 0.0;
+  /** 落下速度 (行/ms) */
+  public fallSpeed: number = 1 / 800;
+
   /** block0 の色（元の「左」ブロック） */
   public readonly block0Color: number;
   /** block1 の色（元の「右」ブロック） */
@@ -80,8 +85,7 @@ export class Capsule {
   // ────────────────────────────────────
 
   /**
-   * 1ブロックを描画する（staticメソッド）
-   * GameScene の drawLandedBlocks() からも利用する。
+   * 1ブロックを描画する（staticメソッド） - ちぎれたカプセル薬（球体）
    */
   static drawBlock(
     graphics: Phaser.GameObjects.Graphics,
@@ -92,17 +96,102 @@ export class Capsule {
     const pad = 2;
     const size = CELL_SIZE - pad * 2;
 
-    // 塗りつぶし
+    // 塗りつぶし（完全な円）
     graphics.fillStyle(color, 1);
-    graphics.fillRoundedRect(x + pad, y + pad, size, size, 6);
+    graphics.fillCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2);
 
-    // ハイライト（上部の明るい半円風グラデーション表現）
-    graphics.fillStyle(0xffffff, 0.25);
-    graphics.fillRoundedRect(x + pad + 3, y + pad + 3, size - 6, size / 2 - 2, 4);
+    // ハイライト（上部に白 alpha 0.3）
+    graphics.fillStyle(0xffffff, 0.3);
+    graphics.slice(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2 - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+    graphics.fillPath();
 
     // 枠線
-    graphics.lineStyle(1.5, 0x000000, 0.3);
-    graphics.strokeRoundedRect(x + pad, y + pad, size, size, 6);
+    graphics.lineStyle(1.5, 0x000000, 0.4);
+    graphics.strokeCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2);
+  }
+
+  /**
+   * カプセルの半球（ハーフカプセル）を描画する
+   */
+  static drawHalfCapsule(
+    graphics: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    color: number,
+    position: 'left' | 'right' | 'top' | 'bottom'
+  ): void {
+    const pad = 2;
+    const size = CELL_SIZE - pad * 2;
+    const r = size / 2;
+
+    graphics.fillStyle(color, 1);
+
+    if (position === 'left') {
+      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 90, Phaser.Math.DEG_TO_RAD * 270, true);
+      graphics.fillPath();
+      graphics.fillRect(x + pad + r, y + pad, r, size);
+    } else if (position === 'right') {
+      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 270, Phaser.Math.DEG_TO_RAD * 90, true);
+      graphics.fillPath();
+      graphics.fillRect(x + pad, y + pad, r, size);
+    } else if (position === 'top') {
+      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.fillPath();
+      graphics.fillRect(x + pad, y + pad + r, size, r);
+    } else if (position === 'bottom') {
+      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 0, Phaser.Math.DEG_TO_RAD * 180, true);
+      graphics.fillPath();
+      graphics.fillRect(x + pad, y + pad, size, r);
+    }
+
+    // ハイライト
+    graphics.fillStyle(0xffffff, 0.3);
+    if (position === 'left') {
+      graphics.slice(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 270, true);
+      graphics.fillPath();
+      graphics.fillRect(x + pad + r, y + pad + 3, r - 3, size / 2 - 2);
+    } else if (position === 'right') {
+      graphics.slice(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 270, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.fillPath();
+      graphics.fillRect(x + pad + 3, y + pad + 3, r - 3, size / 2 - 2);
+    } else if (position === 'top') {
+      graphics.slice(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.fillPath();
+    } else if (position === 'bottom') {
+      graphics.fillRect(x + pad + 3, y + pad + 3, size - 6, size / 2 - 2);
+    }
+
+    // 枠線
+    graphics.lineStyle(1.5, 0x000000, 0.4);
+    if (position === 'left') {
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 90, Phaser.Math.DEG_TO_RAD * 270, false);
+      graphics.lineTo(x + pad + size, y + pad);
+      graphics.moveTo(x + pad + r, y + pad + size);
+      graphics.lineTo(x + pad + size, y + pad + size);
+      graphics.strokePath();
+    } else if (position === 'right') {
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 270, Phaser.Math.DEG_TO_RAD * 90, false);
+      graphics.lineTo(x + pad, y + pad + size);
+      graphics.moveTo(x + pad + r, y + pad);
+      graphics.lineTo(x + pad, y + pad);
+      graphics.strokePath();
+    } else if (position === 'top') {
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, false);
+      graphics.lineTo(x + pad + size, y + pad + size);
+      graphics.moveTo(x + pad, y + pad + r);
+      graphics.lineTo(x + pad, y + pad + size);
+      graphics.strokePath();
+    } else if (position === 'bottom') {
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 0, Phaser.Math.DEG_TO_RAD * 180, false);
+      graphics.lineTo(x + pad, y + pad);
+      graphics.moveTo(x + pad + size, y + pad + r);
+      graphics.lineTo(x + pad + size, y + pad);
+      graphics.strokePath();
+    }
   }
 
   // ────────────────────────────────────
@@ -111,7 +200,6 @@ export class Capsule {
 
   /**
    * カプセルを構成する全ブロックの絶対グリッド座標と色を返す。
-   * canMoveDown() や landCapsule() での衝突判定・書き込みに使う。
    */
   getBlocks(): BlockInfo[] {
     const [off0, off1] = ROTATION_OFFSETS[this.rotation];
@@ -171,46 +259,15 @@ export class Capsule {
   // ────────────────────────────────────
 
   /**
-   * ドラッグ中のカプセル表示。
-   * X方向はグリッド列にスナップ、Y方向はピクセル単位でオフセット表示。
-   * @param pointerX  画面上のポインターX座標
-   * @param pointerY  画面上のポインターY座標
-   * @param offsetY   指からの上方オフセット（px）
-   */
-  drawAtPointer(pointerX: number, pointerY: number, offsetY: number = 60): void {
-    const relX = pointerX - this.gridOffsetX;
-    const pointerCol = Math.floor(relX / CELL_SIZE);
-    const [off0] = ROTATION_OFFSETS[this.rotation];
-    this.col = pointerCol - off0.col;
-    this.clampToGrid();
-
-    const displayPixelY = pointerY - offsetY;
-    this.drawAtPixelY(displayPixelY);
-  }
-
-  /**
    * グリッド座標に基づいて描画する（通常表示）
    */
   draw(): void {
-    const pixelY = this.gridOffsetY + this.row * CELL_SIZE;
+    const pixelY = this.gridOffsetY + (this.row + this.fallProgress) * CELL_SIZE;
     this.drawAtPixelY(pixelY);
   }
 
   /**
-   * ポインターX座標からアンカー列を計算する（state変更なし）。
-   * GameScene 側でこの値を canMoveTo() で検証してから capsule.col に代入する。
-   */
-  calcAnchorColFromPointerX(pointerX: number): number {
-    const relX = pointerX - this.gridOffsetX;
-    const pointerCol = Math.floor(relX / CELL_SIZE);
-    const [off0] = ROTATION_OFFSETS[this.rotation];
-    return pointerCol - off0.col;
-  }
-
-  /**
    * 現在の col/rotation を使い、指定ピクセルY座標で描画する。
-   * ドラッグ中に GameScene が col を管理しつつ呼び出すために使う。
-   * @param anchorPixelY  block0 のピクセルY座標
    */
   drawAtY(anchorPixelY: number): void {
     this.drawAtPixelY(anchorPixelY);
@@ -218,24 +275,34 @@ export class Capsule {
 
   /**
    * 内部描画処理。アンカーの列座標 + 各ブロックのオフセットから描画。
-   * @param anchorPixelY  block0 のピクセルY座標
    */
   private drawAtPixelY(anchorPixelY: number): void {
     const [off0, off1] = ROTATION_OFFSETS[this.rotation];
-
     const anchorPixelX = this.gridOffsetX + this.col * CELL_SIZE;
 
-    Capsule.drawBlock(
-      this.graphics,
-      anchorPixelX + off0.col * CELL_SIZE,
-      anchorPixelY + off0.row * CELL_SIZE,
-      this.block0Color
-    );
-    Capsule.drawBlock(
-      this.graphics,
-      anchorPixelX + off1.col * CELL_SIZE,
-      anchorPixelY + off1.row * CELL_SIZE,
-      this.block1Color
-    );
+    const x0 = anchorPixelX + off0.col * CELL_SIZE;
+    const y0 = anchorPixelY + off0.row * CELL_SIZE;
+    const x1 = anchorPixelX + off1.col * CELL_SIZE;
+    const y1 = anchorPixelY + off1.row * CELL_SIZE;
+
+    let pos0: 'left' | 'right' | 'top' | 'bottom' = 'left';
+    let pos1: 'left' | 'right' | 'top' | 'bottom' = 'right';
+
+    if (this.rotation === 0) {
+      pos0 = 'left';
+      pos1 = 'right';
+    } else if (this.rotation === 1) {
+      pos0 = 'top';
+      pos1 = 'bottom';
+    } else if (this.rotation === 2) {
+      pos0 = 'right';
+      pos1 = 'left';
+    } else if (this.rotation === 3) {
+      pos0 = 'bottom';
+      pos1 = 'top';
+    }
+
+    Capsule.drawHalfCapsule(this.graphics, x0, y0, this.block0Color, pos0);
+    Capsule.drawHalfCapsule(this.graphics, x1, y1, this.block1Color, pos1);
   }
 }
