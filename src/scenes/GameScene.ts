@@ -40,6 +40,7 @@ export class GameScene extends Phaser.Scene {
   private isBlinking: boolean = false;
   private isBlinkingVisible: boolean = true;
   private blinkTimerEvent: Phaser.Time.TimerEvent | null = null;
+  private gridDirs: ('left' | 'right' | 'top' | 'bottom' | null)[][] = [];
 
   // ── カウントダウン演出 ─────────────────
   private isCountingDown: boolean = false;
@@ -101,6 +102,9 @@ export class GameScene extends Phaser.Scene {
 
     // グリッドデータの初期設定 (空盤面)
     this.grid = Array.from({ length: GRID_ROWS }, () =>
+      Array(GRID_COLS).fill(null)
+    );
+    this.gridDirs = Array.from({ length: GRID_ROWS }, () =>
       Array(GRID_COLS).fill(null)
     );
 
@@ -340,9 +344,25 @@ export class GameScene extends Phaser.Scene {
     if (!this.capsule) return;
 
     const blocks = this.capsule.getBlocks();
-    blocks.forEach(({ col, row, color }) => {
+    
+    // カプセルの回転状態に基づく各ブロックの元の位置タイプ (left, right, top, bottom) を取得
+    let pos0: 'left' | 'right' | 'top' | 'bottom' = 'left';
+    let pos1: 'left' | 'right' | 'top' | 'bottom' = 'right';
+    if (this.capsule.rotation === 0) {
+      pos0 = 'left'; pos1 = 'right';
+    } else if (this.capsule.rotation === 1) {
+      pos0 = 'top'; pos1 = 'bottom';
+    } else if (this.capsule.rotation === 2) {
+      pos0 = 'right'; pos1 = 'left';
+    } else if (this.capsule.rotation === 3) {
+      pos0 = 'bottom'; pos1 = 'top';
+    }
+    const poses = [pos0, pos1];
+
+    blocks.forEach(({ col, row, color }, idx) => {
       if (row >= 0 && row < GRID_ROWS && col >= 0 && col < GRID_COLS) {
         this.grid[row][col] = color;
+        this.gridDirs[row][col] = poses[idx];
       }
     });
 
@@ -399,6 +419,7 @@ export class GameScene extends Phaser.Scene {
       toDelete.forEach(key => {
         const [r, c] = key.split(',').map(Number);
         this.grid[r][c] = null;
+        this.gridDirs[r][c] = null;
         this.germCells.delete(key);
       });
       this.redraw();
@@ -493,7 +514,9 @@ export class GameScene extends Phaser.Scene {
       for (let col = 0; col < GRID_COLS; col++) {
         if (this.grid[row][col] !== null && this.grid[row + 1][col] === null) {
           this.grid[row + 1][col] = this.grid[row][col];
+          this.gridDirs[row + 1][col] = this.gridDirs[row][col];
           this.grid[row][col] = null;
+          this.gridDirs[row][col] = null;
 
           const key = `${row},${col}`;
           if (this.germCells.has(key)) {
@@ -623,7 +646,29 @@ export class GameScene extends Phaser.Scene {
         if (this.germCells.has(`${row},${col}`)) {
           Germ.drawGerm(this.gfx, px, py, color);
         } else {
-          Capsule.drawBlock(this.gfx, px, py, color);
+          const originalDir = this.gridDirs[row][col];
+          
+          // 隣に相方が生存しているか（ちぎれていない連結カプセルか）チェック
+          let isConnected = false;
+          if (originalDir) {
+            if (originalDir === 'left') {
+              isConnected = (col + 1 < GRID_COLS && this.grid[row][col + 1] !== null && this.gridDirs[row][col + 1] === 'right');
+            } else if (originalDir === 'right') {
+              isConnected = (col - 1 >= 0 && this.grid[row][col - 1] !== null && this.gridDirs[row][col - 1] === 'left');
+            } else if (originalDir === 'top') {
+              isConnected = (row + 1 < GRID_ROWS && this.grid[row + 1][col] !== null && this.gridDirs[row + 1][col] === 'bottom');
+            } else if (originalDir === 'bottom') {
+              isConnected = (row - 1 >= 0 && this.grid[row - 1][col] !== null && this.gridDirs[row - 1][col] === 'top');
+            }
+          }
+
+          if (isConnected && originalDir) {
+            // まだ連結している：ハーフカプセルとして描画
+            Capsule.drawHalfCapsule(this.gfx, px, py, color, originalDir);
+          } else {
+            // ちぎれた：元の向きを考慮したドーム型（卵型）ブロックとして描画！
+            Capsule.drawBlock(this.gfx, px, py, color, originalDir);
+          }
         }
       }
     }
@@ -846,6 +891,7 @@ export class GameScene extends Phaser.Scene {
     this.overlayObjects = [];
 
     this.grid = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
+    this.gridDirs = Array.from({ length: GRID_ROWS }, () => Array(GRID_COLS).fill(null));
     this.germCells.clear();
     this.capsule = null;
     this.isDragging = false;

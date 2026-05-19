@@ -87,35 +87,105 @@ export class Capsule {
   // ────────────────────────────────────
 
   /**
-   * 1ブロックを描画する（staticメソッド） - ちぎれたカプセル薬（球体）
+   * 1ブロックを描画する（ちぎれて単体ブロックになった際、または細菌のフォールバック）
    */
   static drawBlock(
     graphics: Phaser.GameObjects.Graphics,
     x: number,
     y: number,
-    color: number
+    color: number,
+    originalDir?: 'left' | 'right' | 'top' | 'bottom' | null
   ): void {
-    const pad = 2;
+    if (originalDir) {
+      Capsule.drawSingleBlock(graphics, x, y, color, originalDir);
+      return;
+    }
+
+    const pad = 1.5;
     const size = CELL_SIZE - pad * 2;
 
     // 塗りつぶし（完全な円）
     graphics.fillStyle(color, 1);
     graphics.fillCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2);
 
-    // ハイライト（上部に白 alpha 0.3）
-    graphics.fillStyle(0xffffff, 0.3);
+    // ハイライト（上部に白 alpha 0.35）
+    graphics.fillStyle(0xffffff, 0.35);
     graphics.beginPath();
     graphics.arc(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2 - 3, DEG_TO_RAD * 180, DEG_TO_RAD * 360, true);
     graphics.closePath();
     graphics.fillPath();
 
-    // 枠線
-    graphics.lineStyle(1.5, 0x000000, 0.4);
+    // 枠線（太枠）
+    graphics.lineStyle(2.5, 0x050510, 1);
     graphics.strokeCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2);
   }
 
   /**
-   * カプセルの半球（ハーフカプセル）を描画する
+   * ちぎれた単体ブロックのドーム型（卵型）描画
+   */
+  static drawSingleBlock(
+    graphics: Phaser.GameObjects.Graphics,
+    x: number,
+    y: number,
+    color: number,
+    originalDir: 'left' | 'right' | 'top' | 'bottom'
+  ): void {
+    const pad = 1.5;
+    const size = CELL_SIZE - pad * 2;
+    const r = size / 2;
+
+    graphics.fillStyle(color, 1);
+
+    if (originalDir === 'left' || originalDir === 'right') {
+      // 横長ドーム型（左右両端が丸い卵型）
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, false);
+      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, false);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // L字ハイライト
+      graphics.lineStyle(2.5, 0xffffff, 0.45);
+      graphics.beginPath();
+      graphics.moveTo(x + CELL_SIZE - pad - r, y + pad + 3);
+      graphics.lineTo(x + pad + r, y + pad + 3);
+      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.strokePath();
+
+      // 太い外枠（滑らかな1つの太線）
+      graphics.lineStyle(3, 0x050510, 1);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, false);
+      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, false);
+      graphics.closePath();
+      graphics.strokePath();
+    } else {
+      // 縦長ドーム型（上下両端が丸い卵型）
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, false);
+      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, false);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // L字ハイライト
+      graphics.lineStyle(2.5, 0xffffff, 0.45);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.lineTo(x + pad + 3, y + CELL_SIZE - pad - r);
+      graphics.strokePath();
+
+      // 太い外枠
+      graphics.lineStyle(3, 0x050510, 1);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, false);
+      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, false);
+      graphics.closePath();
+      graphics.strokePath();
+    }
+  }
+
+  /**
+   * カプセルの半球（ハーフカプセル）を描画する（連結時）
    */
   static drawHalfCapsule(
     graphics: Phaser.GameObjects.Graphics,
@@ -124,90 +194,125 @@ export class Capsule {
     color: number,
     position: 'left' | 'right' | 'top' | 'bottom'
   ): void {
-    const pad = 2;
+    const pad = 1.5;
     const size = CELL_SIZE - pad * 2;
     const r = size / 2;
 
     graphics.fillStyle(color, 1);
 
     if (position === 'left') {
+      // 塗りつぶし：左丸み・右平ら
       graphics.beginPath();
       graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, true);
+      graphics.lineTo(x + CELL_SIZE, y + pad);
+      graphics.lineTo(x + CELL_SIZE, y + pad + size);
       graphics.closePath();
       graphics.fillPath();
-      graphics.fillRect(x + pad + r, y + pad, r, size);
-    } else if (position === 'right') {
-      graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, true);
-      graphics.closePath();
-      graphics.fillPath();
-      graphics.fillRect(x + pad, y + pad, r, size);
-    } else if (position === 'top') {
-      graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, true);
-      graphics.closePath();
-      graphics.fillPath();
-      graphics.fillRect(x + pad, y + pad + r, size, r);
-    } else if (position === 'bottom') {
-      graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, true);
-      graphics.closePath();
-      graphics.fillPath();
-      graphics.fillRect(x + pad, y + pad, size, r);
-    }
 
-    // ハイライト
-    graphics.fillStyle(0xffffff, 0.3);
-    if (position === 'left') {
+      // L字ハイライト（上フチ ＆ 左丸み）
+      graphics.lineStyle(2.5, 0xffffff, 0.45);
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 180, DEG_TO_RAD * 270, true);
-      graphics.closePath();
-      graphics.fillPath();
-      graphics.fillRect(x + pad + r, y + pad + 3, r - 3, size / 2 - 2);
-    } else if (position === 'right') {
-      graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 360, true);
-      graphics.closePath();
-      graphics.fillPath();
-      graphics.fillRect(x + pad + 3, y + pad + 3, r - 3, size / 2 - 2);
-    } else if (position === 'top') {
-      graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 180, DEG_TO_RAD * 360, true);
-      graphics.closePath();
-      graphics.fillPath();
-    } else if (position === 'bottom') {
-      graphics.fillRect(x + pad + 3, y + pad + 3, size - 6, size / 2 - 2);
-    }
+      graphics.moveTo(x + CELL_SIZE, y + pad + 3);
+      graphics.lineTo(x + pad + r, y + pad + 3);
+      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.strokePath();
 
-    // 枠線
-    graphics.lineStyle(1.5, 0x000000, 0.4);
-    if (position === 'left') {
+      // 太い外枠（右端の縦線は描かない）
+      graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
       graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, false);
-      graphics.lineTo(x + pad + size, y + pad);
+      graphics.lineTo(x + CELL_SIZE, y + pad);
       graphics.moveTo(x + pad + r, y + pad + size);
-      graphics.lineTo(x + pad + size, y + pad + size);
+      graphics.lineTo(x + CELL_SIZE, y + pad + size);
       graphics.strokePath();
+
     } else if (position === 'right') {
+      // 塗りつぶし：左平ら・右丸み
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, false);
-      graphics.lineTo(x + pad, y + pad + size);
-      graphics.moveTo(x + pad + r, y + pad);
-      graphics.lineTo(x + pad, y + pad);
+      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, true);
+      graphics.lineTo(x, y + pad + size);
+      graphics.lineTo(x, y + pad);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // 上フチの直線ハイライト
+      graphics.lineStyle(2.5, 0xffffff, 0.45);
+      graphics.beginPath();
+      graphics.moveTo(x, y + pad + 3);
+      graphics.lineTo(x + CELL_SIZE - pad - r, y + pad + 3);
       graphics.strokePath();
+
+      // 太い外枠（左端の縦線は描かない）
+      graphics.lineStyle(3, 0x050510, 1);
+      graphics.beginPath();
+      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, false);
+      graphics.lineTo(x, y + pad + size);
+      graphics.moveTo(x + CELL_SIZE - pad - r, y + pad);
+      graphics.lineTo(x, y + pad);
+      graphics.strokePath();
+
+      // スリット（中央境界部の細い黒スリット線）
+      graphics.lineStyle(1.5, 0x050510, 0.85);
+      graphics.beginPath();
+      graphics.moveTo(x, y + pad);
+      graphics.lineTo(x, y + pad + size);
+      graphics.strokePath();
+
     } else if (position === 'top') {
+      // 塗りつぶし：上丸み・下平ら
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, true);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE);
+      graphics.lineTo(x + pad, y + CELL_SIZE);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // L字ハイライト（上丸み ＆ 左フチ）
+      graphics.lineStyle(2.5, 0xffffff, 0.45);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.lineTo(x + pad + 3, y + CELL_SIZE);
+      graphics.strokePath();
+
+      // 太い外枠（下端の横線は描かない）
+      graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
       graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, false);
-      graphics.lineTo(x + pad + size, y + pad + size);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE);
       graphics.moveTo(x + pad, y + pad + r);
-      graphics.lineTo(x + pad, y + pad + size);
+      graphics.lineTo(x + pad, y + CELL_SIZE);
       graphics.strokePath();
+
     } else if (position === 'bottom') {
+      // 塗りつぶし：上平ら・下丸み
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, false);
-      graphics.lineTo(x + pad, y + pad);
-      graphics.moveTo(x + pad + size, y + pad + r);
-      graphics.lineTo(x + pad + size, y + pad);
+      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, true);
+      graphics.lineTo(x + pad, y);
+      graphics.lineTo(x + pad + size, y);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // 左フチの直線ハイライト
+      graphics.lineStyle(2.5, 0xffffff, 0.45);
+      graphics.beginPath();
+      graphics.moveTo(x + pad + 3, y);
+      graphics.lineTo(x + pad + 3, y + CELL_SIZE - pad - r);
+      graphics.strokePath();
+
+      // 太い外枠（上端の横線は描かない）
+      graphics.lineStyle(3, 0x050510, 1);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, false);
+      graphics.lineTo(x + pad, y);
+      graphics.moveTo(x + pad + size, y + CELL_SIZE - pad - r);
+      graphics.lineTo(x + pad + size, y);
+      graphics.strokePath();
+
+      // スリット（中央境界部の細い黒スリット線）
+      graphics.lineStyle(1.5, 0x050510, 0.85);
+      graphics.beginPath();
+      graphics.moveTo(x + pad, y);
+      graphics.lineTo(x + pad + size, y);
       graphics.strokePath();
     }
   }
