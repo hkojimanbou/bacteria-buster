@@ -165,6 +165,7 @@ export class GameScene extends Phaser.Scene {
   // ────────────────────────────────────
 
   private async runCountdown(): Promise<void> {
+    console.log('[DEBUG] runCountdown started');
     this.isCountingDown = true;
     this.soundManager.stopBGM();
 
@@ -184,20 +185,24 @@ export class GameScene extends Phaser.Scene {
 
     const nums = ['③', '②', '①'];
     for (const num of nums) {
+      console.log('[DEBUG] Countdown set number:', num);
       this.countdownText.setText(num);
       this.soundManager.playTone(440, 'sine', 0.04, 0.08); // ピッ
       await this.delay(800);
     }
+    console.log('[DEBUG] Countdown loop finished');
 
     // クリーンアップ
     this.countdownText.destroy();
     this.countdownBg.destroy();
     this.countdownCircle.destroy();
+    console.log('[DEBUG] Countdown UI destroyed');
 
     this.isCountingDown = false;
 
     // BGMの開始
     this.soundManager.startBGM();
+    console.log('[DEBUG] BGM started');
 
     // 最初のカプセル生成
     this.spawnCapsule();
@@ -286,10 +291,15 @@ export class GameScene extends Phaser.Scene {
   // ────────────────────────────────────
 
   private spawnCapsule(): void {
-    if (this.isGameOver || this.isGameClear) return;
+    console.log('[DEBUG] spawnCapsule called');
+    if (this.isGameOver || this.isGameClear) {
+      console.log('[DEBUG] spawnCapsule aborted due to game over or clear');
+      return;
+    }
 
     // ゲームオーバー判定 (注ぎ口が埋まっているか)
     if (this.grid[0][3] !== null || this.grid[0][4] !== null) {
+      console.log('[DEBUG] spawnCapsule failed: bottleneck filled');
       this.showGameOver();
       return;
     }
@@ -311,6 +321,7 @@ export class GameScene extends Phaser.Scene {
 
     // 通常の物理速度をセット
     this.capsule.fallSpeed = this.fallSpeedNormal;
+    console.log('[DEBUG] Capsule spawned, triggering first redraw');
     this.redraw();
   }
 
@@ -632,22 +643,30 @@ export class GameScene extends Phaser.Scene {
   }
 
   private redraw(): void {
+    console.log('[DEBUG] redraw called');
     this.gfx.clear();
     
     // 背景のクリア
     this.gfx.fillStyle(0x1a1a2e, 1);
     this.gfx.fillRect(0, 0, this.scale.width, this.scale.height);
 
-    // 各セクションの描画
+    console.log('[DEBUG] redraw - calling drawGrid');
     this.drawGrid();
+    
+    console.log('[DEBUG] redraw - calling drawLandedBlocks');
     this.drawLandedBlocks();
+    
+    console.log('[DEBUG] redraw - calling drawNext');
     this.drawNext();
     
     if (this.capsule) {
+      console.log('[DEBUG] redraw - calling capsule.draw');
       this.capsule.draw();
     }
 
+    console.log('[DEBUG] redraw - calling drawHUD');
     this.drawHUD();
+    console.log('[DEBUG] redraw finished');
   }
 
   // ────────────────────────────────────
@@ -827,6 +846,6 @@ export class GameScene extends Phaser.Scene {
   // ────────────────────────────────────
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => this.time.delayedCall(ms, resolve));
+    return new Promise(resolve => this.time.delayedCall(ms, () => resolve()));
   }
 }
