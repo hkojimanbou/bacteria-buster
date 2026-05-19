@@ -32,7 +32,7 @@ export class GameScene extends Phaser.Scene {
   private isDragging: boolean = false;
   private pointerDownX: number = 0;
   private pointerDownY: number = 0;
-  private touchStartCol: number = 0;
+  private touchColOffset: number = 0;
   private capsuleHitArea!: Phaser.Geom.Rectangle;
 
   // ── 消去テンポ制御用 ─────────────────
@@ -126,6 +126,13 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.isCountingDown || this.isGameOver || this.isGameClear) return;
     if (!this.capsule) return;
+
+    // すぐ下が床や他のブロックであれば、沈み込ませずに即座に着地させる（重なりバグ完全解消）
+    if (!this.canMoveDown()) {
+      this.capsule.fallProgress = 0.0;
+      this.landCapsule();
+      return;
+    }
 
     // 1. カプセル物理落下 (時間経過による進捗)
     this.capsule.fallProgress += this.capsule.fallSpeed * delta;
@@ -685,7 +692,11 @@ export class GameScene extends Phaser.Scene {
       this.isDragging = true;
       this.pointerDownX = pointer.x;
       this.pointerDownY = pointer.y;
-      this.touchStartCol = this.capsule.col;
+
+      // 指の下にある列と現在のカプセル列の差分（ドラッグ用オフセット）を計算
+      const gridX = pointer.x - GRID_OFFSET_X;
+      const colUnderPointer = Math.floor(gridX / CELL_SIZE);
+      this.touchColOffset = this.capsule.col - colUnderPointer;
       
       // タッチ中の落下減速
       this.capsule.fallSpeed = FALL_SPEED_SLOW;
@@ -694,15 +705,34 @@ export class GameScene extends Phaser.Scene {
     this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
       if (!this.isDragging || !this.capsule) return;
 
-      const dx = pointer.x - this.pointerDownX;
-      // グリッドスナップ単位の移動計算
-      const colOffset = Math.round(dx / CELL_SIZE);
+      // 下フリック（高速落下）の検知：縦ドラッグが下方向に30px以上なら高速落下
+      const dy = pointer.y - this.pointerDownY;
+      if (dy > 30) {
+        this.capsule.fallSpeed = 1 / 150; // サッと高速落下（150ms/行）
+      } else {
+        this.capsule.fallSpeed = FALL_SPEED_SLOW; // 通常タッチ減速
+      }
 
-      // 1列ずつ衝突判定を行い、障害物でピタッと止まるようにスライド
-      let steps = Math.abs(colOffset);
-      let dir = Math.sign(colOffset);
-      let currentCol = this.touchStartCol;
-      
+      // 指の現在X座標に基づく直接ドラッグ移動（吸い付くドラッグ）
+      const gridX = pointer.x - GRID_OFFSET_X;
+      const colUnderPointer = Math.floor(gridX / CELL_SIZE);
+      let targetCol = colUnderPointer + this.touchColOffset;
+
+      // 回転を考慮したクランプ
+      const blocks = this.capsule.getBlocks();
+      const cols = blocks.map(b => b.col);
+      const minCol = Math.min(...cols);
+      const maxCol = Math.max(...cols);
+      const widthCols = maxCol - minCol; // 0または1
+
+      if (targetCol < 0) targetCol = 0;
+      if (targetCol + widthCols >= GRID_COLS) targetCol = GRID_COLS - 1 - widthCols;
+
+      // 現在列からtargetColまで1列ずつ障害物をチェックしながら吸い付く
+      let dir = Math.sign(targetCol - this.capsule.col);
+      let steps = Math.abs(targetCol - this.capsule.col);
+      let currentCol = this.capsule.col;
+
       for (let i = 0; i < steps; i++) {
         let nextCol = currentCol + dir;
         if (this.canMoveTo(nextCol)) {

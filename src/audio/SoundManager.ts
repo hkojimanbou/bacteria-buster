@@ -44,13 +44,19 @@ export class SoundManager {
     this.isBGMPlaying = true;
     this.bgmIndex = 0;
 
-    const notes = [523.25, 659.25, 783.99, 659.25]; // C4, E4, G4, E4
-    const tempoDelay = 667; // 約90BPM (60000 / 90)
+    // 心地よく穏やかな16音のドリーミーなコード進行（C -> Am -> F -> G）
+    const notes = [
+      261.63, 329.63, 392.00, 329.63, // C4 -> E4 -> G4 -> E4 (C Major)
+      440.00, 523.25, 659.25, 523.25, // A4 -> C5 -> E5 -> C5 (A Minor)
+      349.23, 440.00, 523.25, 440.00, // F4 -> A4 -> C5 -> A4 (F Major)
+      392.00, 493.88, 587.33, 493.88  // G4 -> B4 -> D5 -> B4 (G Major)
+    ];
+    const tempoDelay = 600; // 600msごとに次の音 (約100BPM)
 
     const tick = () => {
       if (!this.isBGMPlaying) return;
       const freq = notes[this.bgmIndex];
-      this.playBGMTone(freq, 0.5); // 音の長さ 0.5秒
+      this.playBGMTone(freq, 0.5); // 音長 0.5秒
       this.bgmIndex = (this.bgmIndex + 1) % notes.length;
       this.bgmTimer = setTimeout(tick, tempoDelay);
     };
@@ -79,15 +85,15 @@ export class SoundManager {
       osc.type = 'sine';
       osc.frequency.setValueAtTime(frequency, this.ctx.currentTime);
 
-      const vol = 0.03; // 耳に優しい音量
+      const vol = 0.025; // さらに耳に優しい音量に調整
       const t = this.ctx.currentTime;
 
       // フェードイン (50ms)
       gain.gain.setValueAtTime(0, t);
       gain.gain.linearRampToValueAtTime(vol, t + 0.05);
 
-      // フェードアウト (100ms)
-      gain.gain.setValueAtTime(vol, t + duration - 0.1);
+      // フェードアウト (150ms)
+      gain.gain.setValueAtTime(vol, t + duration - 0.15);
       gain.gain.linearRampToValueAtTime(0.001, t + duration);
 
       osc.start(t);
