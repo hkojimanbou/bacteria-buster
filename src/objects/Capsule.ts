@@ -102,7 +102,9 @@ export class Capsule {
 
     // ハイライト（上部に白 alpha 0.3）
     graphics.fillStyle(0xffffff, 0.3);
-    graphics.slice(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2 - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+    graphics.beginPath();
+    graphics.arc(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2 - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+    graphics.closePath();
     graphics.fillPath();
 
     // 枠線
@@ -127,19 +129,27 @@ export class Capsule {
     graphics.fillStyle(color, 1);
 
     if (position === 'left') {
-      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 90, Phaser.Math.DEG_TO_RAD * 270, true);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 90, Phaser.Math.DEG_TO_RAD * 270, true);
+      graphics.closePath();
       graphics.fillPath();
       graphics.fillRect(x + pad + r, y + pad, r, size);
     } else if (position === 'right') {
-      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 270, Phaser.Math.DEG_TO_RAD * 90, true);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 270, Phaser.Math.DEG_TO_RAD * 90, true);
+      graphics.closePath();
       graphics.fillPath();
       graphics.fillRect(x + pad, y + pad, r, size);
     } else if (position === 'top') {
-      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.closePath();
       graphics.fillPath();
       graphics.fillRect(x + pad, y + pad + r, size, r);
     } else if (position === 'bottom') {
-      graphics.slice(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 0, Phaser.Math.DEG_TO_RAD * 180, true);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r, Phaser.Math.DEG_TO_RAD * 0, Phaser.Math.DEG_TO_RAD * 180, true);
+      graphics.closePath();
       graphics.fillPath();
       graphics.fillRect(x + pad, y + pad, size, r);
     }
@@ -147,15 +157,21 @@ export class Capsule {
     // ハイライト
     graphics.fillStyle(0xffffff, 0.3);
     if (position === 'left') {
-      graphics.slice(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 270, true);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 270, true);
+      graphics.closePath();
       graphics.fillPath();
       graphics.fillRect(x + pad + r, y + pad + 3, r - 3, size / 2 - 2);
     } else if (position === 'right') {
-      graphics.slice(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 270, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 270, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.closePath();
       graphics.fillPath();
       graphics.fillRect(x + pad + 3, y + pad + 3, r - 3, size / 2 - 2);
     } else if (position === 'top') {
-      graphics.slice(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.beginPath();
+      graphics.arc(x + pad + r, y + pad + r, r - 3, Phaser.Math.DEG_TO_RAD * 180, Phaser.Math.DEG_TO_RAD * 360, true);
+      graphics.closePath();
       graphics.fillPath();
     } else if (position === 'bottom') {
       graphics.fillRect(x + pad + 3, y + pad + 3, size - 6, size / 2 - 2);
