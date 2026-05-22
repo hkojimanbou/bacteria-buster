@@ -35,6 +35,9 @@ export class GameScene extends Phaser.Scene {
   private touchColOffset: number = 0;
   private capsuleHitArea!: Phaser.Geom.Rectangle;
 
+  // ── 単体ブロックのドラッグ操作用 ─────────────────
+  private draggingBlock: { row: number; col: number; color: number; dir: 'left' | 'right' | 'top' | 'bottom' | null } | null = null;
+
   // ── 消去テンポ制御用 ─────────────────
   private clearingCells: Set<string> = new Set();
   private isBlinking: boolean = false;
@@ -185,13 +188,14 @@ export class GameScene extends Phaser.Scene {
 
     // 白背景フルスクリーン
     this.countdownBg = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0xffffff).setDepth(99);
-    // 黒の丸囲み
-    this.countdownCircle = this.add.arc(cx, cy, 60, 0, 360, false, 0x000000, 1).setDepth(99);
+    // 黒の丸囲み (半径を60から85へ拡大)
+    this.countdownCircle = this.add.arc(cx, cy, 85, 0, 360, false, 0x000000, 1).setDepth(99);
 
     this.countdownText = this.add.text(cx, cy, '', {
-      fontSize: '64px',
+      fontSize: '84px',
       color: '#ffffff',
-      fontStyle: 'bold'
+      fontStyle: 'bold',
+      padding: { top: 16, bottom: 16, left: 16, right: 16 }
     }).setOrigin(0.5).setDepth(100);
 
     const nums = ['③', '②', '①'];
@@ -512,17 +516,23 @@ export class GameScene extends Phaser.Scene {
     let moved = false;
     for (let row = GRID_ROWS - 2; row >= 0; row--) {
       for (let col = 0; col < GRID_COLS; col++) {
-        if (this.grid[row][col] !== null && this.grid[row + 1][col] === null) {
+        const key = `${row},${col}`;
+        // 細菌(germCells)は落下させず、カプセル由来のブロックのみ落下させる。下が空であること。
+        if (
+          this.grid[row][col] !== null &&
+          !this.germCells.has(key) &&
+          this.grid[row + 1][col] === null
+        ) {
           this.grid[row + 1][col] = this.grid[row][col];
           this.gridDirs[row + 1][col] = this.gridDirs[row][col];
           this.grid[row][col] = null;
           this.gridDirs[row][col] = null;
 
-          const key = `${row},${col}`;
-          if (this.germCells.has(key)) {
-            this.germCells.delete(key);
-            this.germCells.add(`${row + 1},${col}`);
+          // ドラッグ中の単体ブロックの座標を追従させる
+          if (this.draggingBlock && this.draggingBlock.row === row && this.draggingBlock.col === col) {
+            this.draggingBlock.row = row + 1;
           }
+
           moved = true;
         }
       }
@@ -727,70 +737,143 @@ export class GameScene extends Phaser.Scene {
 
   private setupPointerEvents(): void {
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      if (this.isCountingDown || this.isGameOver || this.isGameClear || !this.capsule) return;
+      if (this.isCountingDown || this.isGameOver || this.isGameClear) return;
 
-      // カプセル本体外のタッチは一切無視する
-      if (!this.capsuleHitArea.contains(pointer.x, pointer.y)) {
-        return;
-      }
+      // 1. 通常のカプセル（連結カプセル）が操作可能な場合
+      if (this.capsule) {
+        // ヒットエリアの判定に上下左右 24px のマージン（パディング）を持たせる（タッチしやすくする）
+        const hitMargin = 24;
+        const expandedHitArea = new Phaser.Geom.Rectangle(
+          this.capsuleHitArea.x - hitMargin,
+          this.capsuleHitArea.y - hitMargin,
+          this.capsuleHitArea.width + hitMargin * 2,
+          this.capsuleHitArea.height + hitMargin * 2
+        );
 
-      this.isDragging = true;
-      this.pointerDownX = pointer.x;
-      this.pointerDownY = pointer.y;
+        if (expandedHitArea.contains(pointer.x, pointer.y)) {
+          this.isDragging = true;
+          this.pointerDownX = pointer.x;
+          this.pointerDownY = pointer.y;
 
-      // 指の下にある列と現在のカプセル列の差分（ドラッグ用オフセット）を計算
-      const gridX = pointer.x - GRID_OFFSET_X;
-      const colUnderPointer = Math.floor(gridX / CELL_SIZE);
-      this.touchColOffset = this.capsule.col - colUnderPointer;
-      
-      // タッチ中の落下減速
-      this.capsule.fallSpeed = FALL_SPEED_SLOW;
-    });
-
-    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
-      if (!this.isDragging || !this.capsule) return;
-
-      // 下フリック（高速落下）の検知：縦ドラッグが下方向に30px以上なら高速落下
-      const dy = pointer.y - this.pointerDownY;
-      if (dy > 30) {
-        this.capsule.fallSpeed = 1 / 150; // サッと高速落下（150ms/行）
-      } else {
-        this.capsule.fallSpeed = FALL_SPEED_SLOW; // 通常タッチ減速
-      }
-
-      // 指の現在X座標に基づく直接ドラッグ移動（吸い付くドラッグ）
-      const gridX = pointer.x - GRID_OFFSET_X;
-      const colUnderPointer = Math.floor(gridX / CELL_SIZE);
-      let targetCol = colUnderPointer + this.touchColOffset;
-
-      // 回転を考慮したクランプ
-      const blocks = this.capsule.getBlocks();
-      const cols = blocks.map(b => b.col);
-      const minCol = Math.min(...cols);
-      const maxCol = Math.max(...cols);
-      const widthCols = maxCol - minCol; // 0または1
-
-      if (targetCol < 0) targetCol = 0;
-      if (targetCol + widthCols >= GRID_COLS) targetCol = GRID_COLS - 1 - widthCols;
-
-      // 現在列からtargetColまで1列ずつ障害物をチェックしながら吸い付く
-      let dir = Math.sign(targetCol - this.capsule.col);
-      let steps = Math.abs(targetCol - this.capsule.col);
-      let currentCol = this.capsule.col;
-
-      for (let i = 0; i < steps; i++) {
-        let nextCol = currentCol + dir;
-        if (this.canMoveTo(nextCol)) {
-          currentCol = nextCol;
-        } else {
-          break;
+          // 指の下にある列と現在のカプセル列の差分（ドラッグ用オフセット）を計算
+          const gridX = pointer.x - GRID_OFFSET_X;
+          const colUnderPointer = Math.floor(gridX / CELL_SIZE);
+          this.touchColOffset = this.capsule.col - colUnderPointer;
+          
+          // タッチ中の落下減速
+          this.capsule.fallSpeed = FALL_SPEED_SLOW;
+          return; // 連結カプセルのドラッグが開始されたので終了
         }
       }
 
-      this.capsule.col = currentCol;
+      // 2. 連結カプセルが操作されていない、または存在しない場合：
+      // 分離して落下中（または浮いている）カプセルブロックをタッチしたか判定
+      const gridX = pointer.x - GRID_OFFSET_X;
+      const gridY = pointer.y - GRID_OFFSET_Y;
+      const clickCol = Math.floor(gridX / CELL_SIZE);
+      const clickRow = Math.floor(gridY / CELL_SIZE);
+
+      if (clickCol >= 0 && clickCol < GRID_COLS && clickRow >= 0 && clickRow < GRID_ROWS) {
+        const color = this.grid[clickRow][clickCol];
+        // タッチしたのが、ブロックかつ細菌ではない（＝カプセル由来のブロック）
+        if (color !== null && !this.germCells.has(`${clickRow},${clickCol}`)) {
+          // 下が空（＝落下可能なブロック）
+          const isFloating = (clickRow + 1 < GRID_ROWS && this.grid[clickRow + 1][clickCol] === null);
+          
+          if (isFloating) {
+            this.draggingBlock = {
+              row: clickRow,
+              col: clickCol,
+              color: color,
+              dir: this.gridDirs[clickRow][clickCol]
+            };
+            this.pointerDownX = pointer.x;
+            this.pointerDownY = pointer.y;
+          }
+        }
+      }
+    });
+
+    this.input.on('pointermove', (pointer: Phaser.Input.Pointer) => {
+      // A. 通常のカプセルをドラッグしている場合
+      if (this.isDragging && this.capsule) {
+        // 下フリック（高速落下）の検知：縦ドラッグが下方向に30px以上なら高速落下
+        const dy = pointer.y - this.pointerDownY;
+        if (dy > 30) {
+          this.capsule.fallSpeed = 1 / 150; // サッと高速落下（150ms/行）
+        } else {
+          this.capsule.fallSpeed = FALL_SPEED_SLOW; // 通常タッチ減速
+        }
+
+        // 指の現在X座標に基づく直接ドラッグ移動（吸い付くドラッグ）
+        const gridX = pointer.x - GRID_OFFSET_X;
+        const colUnderPointer = Math.floor(gridX / CELL_SIZE);
+        let targetCol = colUnderPointer + this.touchColOffset;
+
+        // 回転を考慮したクランプ
+        const blocks = this.capsule.getBlocks();
+        const cols = blocks.map(b => b.col);
+        const minCol = Math.min(...cols);
+        const maxCol = Math.max(...cols);
+        const widthCols = maxCol - minCol; // 0または1
+
+        if (targetCol < 0) targetCol = 0;
+        if (targetCol + widthCols >= GRID_COLS) targetCol = GRID_COLS - 1 - widthCols;
+
+        // 現在列からtargetColまで1列ずつ障害物をチェックしながら吸い付く
+        let dir = Math.sign(targetCol - this.capsule.col);
+        let steps = Math.abs(targetCol - this.capsule.col);
+        let currentCol = this.capsule.col;
+
+        for (let i = 0; i < steps; i++) {
+          let nextCol = currentCol + dir;
+          if (this.canMoveTo(nextCol)) {
+            currentCol = nextCol;
+          } else {
+            break;
+          }
+        }
+
+        this.capsule.col = currentCol;
+        return;
+      }
+
+      // B. 単体ブロックをドラッグしている場合
+      if (this.draggingBlock) {
+        const gridX = pointer.x - GRID_OFFSET_X;
+        const colUnderPointer = Math.floor(gridX / CELL_SIZE);
+        const targetCol = Phaser.Math.Clamp(colUnderPointer, 0, GRID_COLS - 1);
+
+        const { row, col, color, dir } = this.draggingBlock;
+
+        if (targetCol !== col) {
+          // 移動先セルが空であり、かつ細菌ではない場合のみ移動可能
+          if (this.grid[row][targetCol] === null) {
+            // 元の位置をクリア
+            this.grid[row][col] = null;
+            this.gridDirs[row][col] = null;
+
+            // 新しい位置へ移動
+            this.grid[row][targetCol] = color;
+            this.gridDirs[row][targetCol] = dir;
+
+            // ドラッグ対象座標を更新
+            this.draggingBlock.col = targetCol;
+            
+            // 再描画
+            this.redraw();
+          }
+        }
+      }
     });
 
     this.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      // 単体ブロックのドラッグ終了
+      if (this.draggingBlock) {
+        this.draggingBlock = null;
+        return;
+      }
+
       if (!this.isDragging || !this.capsule) return;
 
       this.isDragging = false;
@@ -810,6 +893,9 @@ export class GameScene extends Phaser.Scene {
     });
 
     this.input.on('pointerout', () => {
+      if (this.draggingBlock) {
+        this.draggingBlock = null;
+      }
       if (this.isDragging && this.capsule) {
         this.isDragging = false;
         this.capsule.fallSpeed = this.fallSpeedNormal;

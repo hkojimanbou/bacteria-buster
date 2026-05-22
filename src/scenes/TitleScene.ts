@@ -13,6 +13,7 @@ export class TitleScene extends Phaser.Scene {
       fontSize: '48px',
       color: '#ffffff',
       fontStyle: 'bold',
+      padding: { top: 12, bottom: 12, left: 10, right: 10 }
     }).setOrigin(0.5);
 
     const subTitleText = this.add.text(cx, cy - 20, 'BACTERIA BUSTER', {
@@ -20,9 +21,10 @@ export class TitleScene extends Phaser.Scene {
       color: '#8899aa',
     }).setOrigin(0.5);
 
-    const startText = this.add.text(cx, cy + 100, '画面をタッチしてスタート', {
+    const startText = this.add.text(cx, cy + 180, '画面をタッチしてスタート', {
       fontSize: '20px',
       color: '#f1c40f',
+      padding: { top: 6, bottom: 6 }
     }).setOrigin(0.5);
 
     this.input.once('pointerdown', () => {
