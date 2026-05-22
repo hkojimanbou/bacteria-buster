@@ -32,6 +32,7 @@ export const GRID_COLS = 8;
 export const GRID_ROWS = 16;
 
 const DEG_TO_RAD = Math.PI / 180;
+const CORNER_RADIUS = 3; // 四角寄りにするための極小角丸半径 (DS風)
 
 /** getBlocks() の戻り値型 */
 export interface BlockInfo {
@@ -104,24 +105,17 @@ export class Capsule {
     const pad = 1.5;
     const size = CELL_SIZE - pad * 2;
 
-    // 塗りつぶし（完全な円）
+    // 塗りつぶし（完全なベタ塗り四角形、角丸）
     graphics.fillStyle(color, 1);
-    graphics.fillCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2);
-
-    // ハイライト（上部に白 alpha 0.35）
-    graphics.fillStyle(0xffffff, 0.35);
-    graphics.beginPath();
-    graphics.arc(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2 - 3, DEG_TO_RAD * 180, DEG_TO_RAD * 360, true);
-    graphics.closePath();
-    graphics.fillPath();
+    graphics.fillRoundedRect(x + pad, y + pad, size, size, CORNER_RADIUS);
 
     // 枠線（太枠）
-    graphics.lineStyle(2.5, 0x050510, 1);
-    graphics.strokeCircle(x + CELL_SIZE / 2, y + CELL_SIZE / 2, size / 2);
+    graphics.lineStyle(3, 0x050510, 1);
+    graphics.strokeRoundedRect(x + pad, y + pad, size, size, CORNER_RADIUS);
   }
 
   /**
-   * ちぎれた単体ブロックのドーム型（卵型）描画
+   * ちぎれた単体ブロックの「四角寄りドーム型（弾丸型）」描画
    */
   static drawSingleBlock(
     graphics: Phaser.GameObjects.Graphics,
@@ -132,53 +126,102 @@ export class Capsule {
   ): void {
     const pad = 1.5;
     const size = CELL_SIZE - pad * 2;
-    const r = size / 2;
 
     graphics.fillStyle(color, 1);
 
-    if (originalDir === 'left' || originalDir === 'right') {
-      // 横長ドーム型（左右両端が丸い卵型）
+    if (originalDir === 'left') {
+      // 元々左側：右端（切断面）は真っ平ら、左端の上下角だけ丸い（四角いドーム）
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, false);
-      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, false);
+      graphics.moveTo(x + CELL_SIZE, y + pad);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.lineTo(x + pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 90, true);
+      graphics.lineTo(x + CELL_SIZE, y + pad + size);
       graphics.closePath();
       graphics.fillPath();
 
-      // L字ハイライト
-      graphics.lineStyle(2.5, 0xffffff, 0.45);
-      graphics.beginPath();
-      graphics.moveTo(x + CELL_SIZE - pad - r, y + pad + 3);
-      graphics.lineTo(x + pad + r, y + pad + 3);
-      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
-      graphics.strokePath();
-
-      // 太い外枠（滑らかな1つの太線）
+      // 外枠（完全に閉じた太線）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, false);
-      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, false);
+      graphics.moveTo(x + CELL_SIZE, y + pad);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.lineTo(x + pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 90, true);
+      graphics.lineTo(x + CELL_SIZE, y + pad + size);
       graphics.closePath();
       graphics.strokePath();
-    } else {
-      // 縦長ドーム型（上下両端が丸い卵型）
+
+    } else if (originalDir === 'right') {
+      // 元々右側：左端（切断面）は真っ平ら、右端の上下角だけ丸い
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, false);
-      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, false);
+      graphics.moveTo(x, y + pad);
+      graphics.lineTo(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
+      graphics.lineTo(x + CELL_SIZE - pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
+      graphics.lineTo(x, y + pad + size);
       graphics.closePath();
       graphics.fillPath();
 
-      // L字ハイライト
-      graphics.lineStyle(2.5, 0xffffff, 0.45);
-      graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
-      graphics.lineTo(x + pad + 3, y + CELL_SIZE - pad - r);
-      graphics.strokePath();
-
-      // 太い外枠
+      // 外枠
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, false);
-      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, false);
+      graphics.moveTo(x, y + pad);
+      graphics.lineTo(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
+      graphics.lineTo(x + CELL_SIZE - pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
+      graphics.lineTo(x, y + pad + size);
+      graphics.closePath();
+      graphics.strokePath();
+
+    } else if (originalDir === 'top') {
+      // 元々上側：下端（切断面）は真っ平ら、上端の左右角だけ丸い
+      graphics.beginPath();
+      graphics.moveTo(x + pad, y + CELL_SIZE);
+      graphics.lineTo(x + pad, y + pad + CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 270, false);
+      graphics.lineTo(x + pad + size - CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // 外枠
+      graphics.lineStyle(3, 0x050510, 1);
+      graphics.beginPath();
+      graphics.moveTo(x + pad, y + CELL_SIZE);
+      graphics.lineTo(x + pad, y + pad + CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 270, false);
+      graphics.lineTo(x + pad + size - CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE);
+      graphics.closePath();
+      graphics.strokePath();
+
+    } else if (originalDir === 'bottom') {
+      // 元々下側：上端（切断面）は真っ平ら、下端の左右角だけ丸い
+      graphics.beginPath();
+      graphics.moveTo(x + pad, y);
+      graphics.lineTo(x + pad + size, y);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE - pad - CORNER_RADIUS);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 90, DEG_TO_RAD * 180, false);
+      graphics.closePath();
+      graphics.fillPath();
+
+      // 外枠
+      graphics.lineStyle(3, 0x050510, 1);
+      graphics.beginPath();
+      graphics.moveTo(x + pad, y);
+      graphics.lineTo(x + pad + size, y);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE - pad - CORNER_RADIUS);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 90, DEG_TO_RAD * 180, false);
       graphics.closePath();
       graphics.strokePath();
     }
@@ -196,59 +239,53 @@ export class Capsule {
   ): void {
     const pad = 1.5;
     const size = CELL_SIZE - pad * 2;
-    const r = size / 2;
 
     graphics.fillStyle(color, 1);
 
     if (position === 'left') {
-      // 塗りつぶし：左丸み・右平ら
+      // 塗りつぶし：左角丸・右直角
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, true);
-      graphics.lineTo(x + CELL_SIZE, y + pad);
+      graphics.moveTo(x + CELL_SIZE, y + pad);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.lineTo(x + pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 90, true);
       graphics.lineTo(x + CELL_SIZE, y + pad + size);
       graphics.closePath();
       graphics.fillPath();
-
-      // L字ハイライト（上フチ ＆ 左丸み）
-      graphics.lineStyle(2.5, 0xffffff, 0.45);
-      graphics.beginPath();
-      graphics.moveTo(x + CELL_SIZE, y + pad + 3);
-      graphics.lineTo(x + pad + r, y + pad + 3);
-      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
-      graphics.strokePath();
 
       // 太い外枠（右端の縦線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 90, DEG_TO_RAD * 270, false);
-      graphics.lineTo(x + CELL_SIZE, y + pad);
-      graphics.moveTo(x + pad + r, y + pad + size);
+      graphics.moveTo(x + CELL_SIZE, y + pad);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
+      graphics.lineTo(x + pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 90, true);
       graphics.lineTo(x + CELL_SIZE, y + pad + size);
       graphics.strokePath();
 
     } else if (position === 'right') {
-      // 塗りつぶし：左平ら・右丸み
+      // 塗りつぶし：左直角・右角丸
       graphics.beginPath();
-      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, true);
+      graphics.moveTo(x, y + pad);
+      graphics.lineTo(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
+      graphics.lineTo(x + CELL_SIZE - pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
       graphics.lineTo(x, y + pad + size);
-      graphics.lineTo(x, y + pad);
       graphics.closePath();
       graphics.fillPath();
-
-      // 上フチの直線ハイライト
-      graphics.lineStyle(2.5, 0xffffff, 0.45);
-      graphics.beginPath();
-      graphics.moveTo(x, y + pad + 3);
-      graphics.lineTo(x + CELL_SIZE - pad - r, y + pad + 3);
-      graphics.strokePath();
 
       // 太い外枠（左端の縦線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
-      graphics.arc(x + CELL_SIZE - pad - r, y + pad + r, r, DEG_TO_RAD * 270, DEG_TO_RAD * 90, false);
+      graphics.moveTo(x, y + pad);
+      graphics.lineTo(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
+      graphics.lineTo(x + CELL_SIZE - pad, y + pad + size - CORNER_RADIUS);
+      graphics.arc(x + CELL_SIZE - pad - CORNER_RADIUS, y + pad + size - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
       graphics.lineTo(x, y + pad + size);
-      graphics.moveTo(x + CELL_SIZE - pad - r, y + pad);
-      graphics.lineTo(x, y + pad);
       graphics.strokePath();
 
       // スリット（中央境界部の細い黒スリット線）
@@ -259,53 +296,50 @@ export class Capsule {
       graphics.strokePath();
 
     } else if (position === 'top') {
-      // 塗りつぶし：上丸み・下平ら
+      // 塗りつぶし：上角丸・下直角
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, true);
+      graphics.moveTo(x + pad, y + CELL_SIZE);
+      graphics.lineTo(x + pad, y + pad + CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 270, false);
+      graphics.lineTo(x + pad + size - CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
       graphics.lineTo(x + pad + size, y + CELL_SIZE);
-      graphics.lineTo(x + pad, y + CELL_SIZE);
       graphics.closePath();
       graphics.fillPath();
-
-      // L字ハイライト（上丸み ＆ 左フチ）
-      graphics.lineStyle(2.5, 0xffffff, 0.45);
-      graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r - 3, DEG_TO_RAD * 270, DEG_TO_RAD * 180, true);
-      graphics.lineTo(x + pad + 3, y + CELL_SIZE);
-      graphics.strokePath();
 
       // 太い外枠（下端の横線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + pad + r, r, DEG_TO_RAD * 180, DEG_TO_RAD * 360, false);
+      graphics.moveTo(x + pad, y + CELL_SIZE);
+      graphics.lineTo(x + pad, y + pad + CORNER_RADIUS);
+      graphics.arc(x + pad + CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 180, DEG_TO_RAD * 270, false);
+      graphics.lineTo(x + pad + size - CORNER_RADIUS, y + pad);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + pad + CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 270, DEG_TO_RAD * 360, false);
       graphics.lineTo(x + pad + size, y + CELL_SIZE);
-      graphics.moveTo(x + pad, y + pad + r);
-      graphics.lineTo(x + pad, y + CELL_SIZE);
       graphics.strokePath();
 
     } else if (position === 'bottom') {
-      // 塗りつぶし：上平ら・下丸み
+      // 塗りつぶし：上直角・下角丸
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, true);
-      graphics.lineTo(x + pad, y);
+      graphics.moveTo(x + pad, y);
       graphics.lineTo(x + pad + size, y);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE - pad - CORNER_RADIUS);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 90, DEG_TO_RAD * 180, false);
+      graphics.lineTo(x + pad, y);
       graphics.closePath();
       graphics.fillPath();
-
-      // 左フチの直線ハイライト
-      graphics.lineStyle(2.5, 0xffffff, 0.45);
-      graphics.beginPath();
-      graphics.moveTo(x + pad + 3, y);
-      graphics.lineTo(x + pad + 3, y + CELL_SIZE - pad - r);
-      graphics.strokePath();
 
       // 太い外枠（上端の横線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
-      graphics.arc(x + pad + r, y + CELL_SIZE - pad - r, r, DEG_TO_RAD * 0, DEG_TO_RAD * 180, false);
+      graphics.moveTo(x + pad + size, y);
+      graphics.lineTo(x + pad + size, y + CELL_SIZE - pad - CORNER_RADIUS);
+      graphics.arc(x + pad + size - CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 0, DEG_TO_RAD * 90, false);
+      graphics.lineTo(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad);
+      graphics.arc(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 90, DEG_TO_RAD * 180, false);
       graphics.lineTo(x + pad, y);
-      graphics.moveTo(x + pad + size, y + CELL_SIZE - pad - r);
-      graphics.lineTo(x + pad + size, y);
       graphics.strokePath();
 
       // スリット（中央境界部の細い黒スリット線）
@@ -322,7 +356,7 @@ export class Capsule {
   // ────────────────────────────────────
 
   /**
-   * カプセルを構成する全ブロックの絶対グリッド座標と色を返す。
+   * カプセルを構成する全ブロック of 絶対グリッド座標と色を返す。
    */
   getBlocks(): BlockInfo[] {
     const [off0, off1] = ROTATION_OFFSETS[this.rotation];
