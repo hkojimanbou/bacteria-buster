@@ -755,7 +755,7 @@ export class GameScene extends Phaser.Scene {
       const py = GRID_OFFSET_Y + eff.row * CELL_SIZE;
       
       // ボトル背景の黄色 (0xf5e642) と残像カラーをブレンド
-      const ratio = Phaser.Math.Clamp(eff.alpha * 0.8, 0, 1);
+      const ratio = Math.min(Math.max(eff.alpha * 0.8, 0), 1);
       const blendedColor = this.blendColors(eff.color, 0xf5e642, ratio);
 
       if (eff.type === 'germ') {
@@ -943,7 +943,7 @@ export class GameScene extends Phaser.Scene {
         const gridX = pointer.x - GRID_OFFSET_X;
         const colUnderPointer = Math.floor(gridX / CELL_SIZE);
         let targetCol = colUnderPointer + this.touchColOffset;
-        targetCol = Phaser.Math.Clamp(targetCol, 0, GRID_COLS - 1);
+        targetCol = Math.min(Math.max(targetCol, 0), GRID_COLS - 1);
 
         const { row, col, color, dir } = this.draggingBlock;
 
@@ -1137,9 +1137,9 @@ export class GameScene extends Phaser.Scene {
     const g2 = (c2 >> 8) & 0xff;
     const b2 = c2 & 0xff;
     
-    const r = Phaser.Math.Clamp(Math.round(r1 * ratio + r2 * (1 - ratio)), 0, 255);
-    const g = Phaser.Math.Clamp(Math.round(g1 * ratio + g2 * (1 - ratio)), 0, 255);
-    const b = Phaser.Math.Clamp(Math.round(b1 * ratio + b2 * (1 - ratio)), 0, 255);
+    const r = Math.min(Math.max(Math.round(r1 * ratio + r2 * (1 - ratio)), 0), 255);
+    const g = Math.min(Math.max(Math.round(g1 * ratio + g2 * (1 - ratio)), 0), 255);
+    const b = Math.min(Math.max(Math.round(b1 * ratio + b2 * (1 - ratio)), 0), 255);
     
     return (r << 16) | (g << 8) | b;
   }
