@@ -249,7 +249,7 @@ export class GameScene extends Phaser.Scene {
     this.isCountingDown = false;
 
     // BGMの開始
-    this.soundManager.startBGM();
+    this.soundManager.startBGM(this.level);
     console.log('[DEBUG] BGM started');
 
     // 最初のカプセル生成
