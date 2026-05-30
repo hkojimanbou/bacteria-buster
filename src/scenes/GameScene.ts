@@ -749,18 +749,20 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    // 消去残像エフェクトの描画 (半透明)
+    // 消去残像エフェクトの描画 (カラーブレンドによる安全な半透明表現。setAlphaバグの完全解消)
     this.fadingEffects.forEach(eff => {
       const px = GRID_OFFSET_X + eff.col * CELL_SIZE;
       const py = GRID_OFFSET_Y + eff.row * CELL_SIZE;
       
-      this.gfx.setAlpha(eff.alpha);
+      // ボトル背景の黄色 (0xf5e642) と残像カラーをブレンド
+      const ratio = Phaser.Math.Clamp(eff.alpha * 0.8, 0, 1);
+      const blendedColor = this.blendColors(eff.color, 0xf5e642, ratio);
+
       if (eff.type === 'germ') {
-        Germ.drawGerm(this.gfx, px, py, eff.color);
+        Germ.drawGerm(this.gfx, px, py, blendedColor);
       } else {
-        Capsule.drawBlock(this.gfx, px, py, eff.color, eff.dir);
+        Capsule.drawBlock(this.gfx, px, py, blendedColor, eff.dir);
       }
-      this.gfx.setAlpha(1.0); // 描画直後に即時アルファ値を1.0にリセット！ (全画面真っ黒バグの解消)
     });
   }
 
@@ -1121,5 +1123,24 @@ export class GameScene extends Phaser.Scene {
 
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => this.time.delayedCall(ms, () => resolve()));
+  }
+
+  /**
+   * 2つのカラーコードを比率に基づいてブレンドするヘルパー関数（不透明度1.0のまま半透明を表現）
+   */
+  private blendColors(c1: number, c2: number, ratio: number): number {
+    const r1 = (c1 >> 16) & 0xff;
+    const g1 = (c1 >> 8) & 0xff;
+    const b1 = c1 & 0xff;
+    
+    const r2 = (c2 >> 16) & 0xff;
+    const g2 = (c2 >> 8) & 0xff;
+    const b2 = c2 & 0xff;
+    
+    const r = Phaser.Math.Clamp(Math.round(r1 * ratio + r2 * (1 - ratio)), 0, 255);
+    const g = Phaser.Math.Clamp(Math.round(g1 * ratio + g2 * (1 - ratio)), 0, 255);
+    const b = Phaser.Math.Clamp(Math.round(b1 * ratio + b2 * (1 - ratio)), 0, 255);
+    
+    return (r << 16) | (g << 8) | b;
   }
 }
