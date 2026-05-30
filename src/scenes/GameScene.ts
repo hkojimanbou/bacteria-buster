@@ -7,8 +7,8 @@ import { SoundManager } from '../audio/SoundManager';
 //  レイアウト定数
 // ────────────────────────────────────
 
-const GRID_OFFSET_X = (360 - GRID_COLS * CELL_SIZE) / 2; // 52px
-const GRID_OFFSET_Y = 110; // 上部に 110px の情報スペースを確保 (110 + 512 = 622px, 下部余白 18px)
+const GRID_OFFSET_X = (360 - GRID_COLS * CELL_SIZE) / 2; // 36px (6列×48px=288px)
+const GRID_OFFSET_Y = 130; // 上部に 130px の情報スペースを確保 (130 + 528 = 658px)
 
 /** カラーパレット（赤・黄・青） */
 const COLORS = [0xe74c3c, 0xf1c40f, 0x3498db];
@@ -45,11 +45,14 @@ export class GameScene extends Phaser.Scene {
   private blinkTimerEvent: Phaser.Time.TimerEvent | null = null;
   private gridDirs: ('left' | 'right' | 'top' | 'bottom' | null)[][] = [];
 
+  // ── 消去残像エフェクト ─────────────────
+  private fadingEffects: { row: number; col: number; color: number; dir: 'left' | 'right' | 'top' | 'bottom' | null; type: 'capsule' | 'germ'; alpha: number }[] = [];
+
   // ── カウントダウン演出 ─────────────────
   private isCountingDown: boolean = false;
   private countdownText!: Phaser.GameObjects.Text;
   private countdownBg!: Phaser.GameObjects.Rectangle;
-  private countdownCircle!: Phaser.GameObjects.Arc;
+  private countdownCircle!: Phaser.GameObjects.Graphics;
 
   // ── HUD & HUD Objects ─────────────────
   private nextColors: [number, number][] = [];
@@ -94,6 +97,7 @@ export class GameScene extends Phaser.Scene {
     this.isGameClear = false;
     this.isDragging = false;
     this.isBlinking = false;
+    this.fadingEffects = [];
   }
 
   create(): void {
@@ -131,6 +135,19 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number): void {
+    // 消去残像エフェクトの進行（ゲームが一時停止していてもエフェクトは減衰・消去する）
+    if (this.fadingEffects.length > 0) {
+      let changed = false;
+      this.fadingEffects.forEach(eff => {
+        eff.alpha -= delta / 150; // 約150msで消滅
+        if (eff.alpha <= 0) changed = true;
+      });
+      if (changed) {
+        this.fadingEffects = this.fadingEffects.filter(eff => eff.alpha > 0);
+      }
+      this.redraw();
+    }
+
     if (this.isCountingDown || this.isGameOver || this.isGameClear) return;
     if (!this.capsule) return;
 
@@ -188,23 +205,39 @@ export class GameScene extends Phaser.Scene {
 
     // 白背景フルスクリーン
     this.countdownBg = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0xffffff).setDepth(99);
-    // 黒の丸囲み (半径を60から85へ拡大)
-    this.countdownCircle = this.add.arc(cx, cy, 85, 0, 360, false, 0x000000, 1).setDepth(99);
+    
+    // 黒の丸囲みと白いリングをGraphicsで描画 (半径を160へ大幅に拡大して画面いっぱいに)
+    const radius = 160;
+    this.countdownCircle = this.add.graphics().setDepth(99);
+    this.countdownCircle.fillStyle(0x000000, 1);
+    this.countdownCircle.fillCircle(cx, cy, radius);
+    this.countdownCircle.lineStyle(10, 0xffffff, 1); // 白い美しいリング（太さ10px）
+    this.countdownCircle.strokeCircle(cx, cy, radius - 15);
 
+    // 数字のサイズを画面いっぱいに超巨大化 (84pxから240pxへ)
     this.countdownText = this.add.text(cx, cy, '', {
-      fontSize: '84px',
+      fontSize: '240px',
       color: '#ffffff',
       fontStyle: 'bold',
-      padding: { top: 16, bottom: 16, left: 16, right: 16 }
+      fontFamily: 'Arial, sans-serif',
+      padding: { top: 40, bottom: 40, left: 40, right: 40 }
     }).setOrigin(0.5).setDepth(100);
 
-    const nums = ['③', '②', '①'];
+    // 3・2・1 → 同じ高音電子音
+    const nums = ['3', '2', '1'];
     for (const num of nums) {
       console.log('[DEBUG] Countdown set number:', num);
       this.countdownText.setText(num);
-      this.soundManager.playTone(440, 'sine', 0.04, 0.08); // ピッ
+      this.soundManager.playCountdownBeep(false); // ピッ (880Hz)
       await this.delay(800);
     }
+
+    // START → 少し高い音程で鳴らす！
+    this.countdownText.setFontSize(110); // STARTの文字幅に合わせてフォントサイズを縮小
+    this.countdownText.setText('START');
+    this.soundManager.playCountdownBeep(true); // ポーン (1320Hz)
+    await this.delay(800);
+
     console.log('[DEBUG] Countdown loop finished');
 
     // クリーンアップ
@@ -240,7 +273,8 @@ export class GameScene extends Phaser.Scene {
     germCount = Math.max(germCount, 2); // 最低2個
 
     while (placed < germCount) {
-      const row = Phaser.Math.Between(8, GRID_ROWS - 1);
+      // 11行になったため、ウイルスの配置範囲を row = 5 から GRID_ROWS - 1 (下部6行) に変更
+      const row = Phaser.Math.Between(5, GRID_ROWS - 1);
       const col = Phaser.Math.Between(0, GRID_COLS - 1);
 
       if (this.grid[row][col] === null) {
@@ -272,23 +306,39 @@ export class GameScene extends Phaser.Scene {
     return true;
   }
 
-  private canRotate(): boolean {
+  private tryRotate(): boolean {
     if (!this.capsule) return false;
 
-    const nextRotation = (this.capsule.rotation + 1) % 4;
-    const offsets = ROTATION_OFFSETS[nextRotation];
+    const originalRotation = this.capsule.rotation;
+    const originalCol = this.capsule.col;
+    const originalRow = this.capsule.row;
 
-    const anchorCol = this.capsule.col;
-    const anchorRow = this.capsule.row;
+    // 1. カプセルを回転させ、グリッド内に押し戻す（Wall Kick適用）
+    this.capsule.rotate(); // この中で rotation が進み、clampToGrid() が走る
 
-    for (const off of offsets) {
-      const c = anchorCol + off.col;
-      const r = anchorRow + off.row;
-      if (c < 0 || c >= GRID_COLS) return false;
-      if (r < 0 || r >= GRID_ROWS) return false;
-      if (this.grid[r][c] !== null) return false;
+    // 2. 衝突判定
+    let canRotate = true;
+    const blocks = this.capsule.getBlocks();
+    for (const b of blocks) {
+      if (b.col < 0 || b.col >= GRID_COLS || b.row < 0 || b.row >= GRID_ROWS) {
+        canRotate = false;
+        break;
+      }
+      if (this.grid[b.row][b.col] !== null) {
+        canRotate = false;
+        break;
+      }
     }
-    return true;
+
+    if (!canRotate) {
+      // 衝突した場合は回転をキャンセルし、元の状態に完全復元する
+      this.capsule.rotation = originalRotation;
+      this.capsule.col = originalCol;
+      this.capsule.row = originalRow;
+      return false;
+    }
+
+    return true; // 回転成功！
   }
 
   private canMoveDown(): boolean {
@@ -312,8 +362,8 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
-    // ゲームオーバー判定 (注ぎ口が埋まっているか)
-    if (this.grid[0][3] !== null || this.grid[0][4] !== null) {
+    // ゲームオーバー判定 (注ぎ口 col=2, 3 が埋まっているか)
+    if (this.grid[0][2] !== null || this.grid[0][3] !== null) {
       console.log('[DEBUG] spawnCapsule failed: bottleneck filled');
       this.showGameOver();
       return;
@@ -325,12 +375,13 @@ export class GameScene extends Phaser.Scene {
       COLORS[Math.floor(Math.random() * COLORS.length)]
     ]);
 
+    // col=2 にスポーンさせる (GRID_COLS=6 用に調整)
     this.capsule = new Capsule(
       this,
       this.gfx,
       GRID_OFFSET_X,
       GRID_OFFSET_Y,
-      3, 0,
+      2, 0,
       c0, c1
     );
 
@@ -419,9 +470,20 @@ export class GameScene extends Phaser.Scene {
       }
       this.isBlinking = false;
 
-      // 実際のグリッドからブロック・細菌を削除
+      // 実際のグリッドからブロック・細菌を削除（削除前に残像エフェクトを登録）
       toDelete.forEach(key => {
         const [r, c] = key.split(',').map(Number);
+        if (this.grid[r][c] !== null) {
+          const isGerm = this.germCells.has(key);
+          this.fadingEffects.push({
+            row: r,
+            col: c,
+            color: this.grid[r][c]!,
+            dir: this.gridDirs[r][c],
+            type: isGerm ? 'germ' : 'capsule',
+            alpha: 0.7 // 初期アルファ値（半透明）
+          });
+        }
         this.grid[r][c] = null;
         this.gridDirs[r][c] = null;
         this.germCells.delete(key);
@@ -442,7 +504,7 @@ export class GameScene extends Phaser.Scene {
         moved = this.applyGravity();
         if (moved) {
           this.redraw();
-          await this.delay(80); // 浮きブロック落下テンポ
+          await this.delay(600); // 浮きブロック落下テンポを80msから600msに減速してプレイヤーの操作猶予を確保！
         }
       }
 
@@ -517,10 +579,15 @@ export class GameScene extends Phaser.Scene {
     for (let row = GRID_ROWS - 2; row >= 0; row--) {
       for (let col = 0; col < GRID_COLS; col++) {
         const key = `${row},${col}`;
-        // 細菌(germCells)は落下させず、カプセル由来のブロックのみ落下させる。下が空であること。
+        
+        // 細菌（ウイルス）は固定オブジェクトであるため、絶対に落下移動処理をスキップする (ウイルス落下禁止徹底)
+        if (this.germCells.has(key)) {
+          continue;
+        }
+
+        // 下が空であり、かつ現在セルが空でなく、細菌でもない場合のみ落下移動
         if (
           this.grid[row][col] !== null &&
-          !this.germCells.has(key) &&
           this.grid[row + 1][col] === null
         ) {
           this.grid[row + 1][col] = this.grid[row][col];
@@ -583,9 +650,8 @@ export class GameScene extends Phaser.Scene {
     if (this.difficulty === 'hard') diffName = 'むずかしい';
     this.add.text(12, 80, `難易度: ${diffName}`, { fontSize: '15px', color: '#ffffff', fontStyle: 'bold' });
 
-    // NEXT表示ラベル
-    this.add.text(220, 10, '次', { fontSize: '12px', color: '#aaaaaa' });
-    this.add.text(290, 10, '次々', { fontSize: '12px', color: '#aaaaaa' });
+    // NEXT表示ラベル (DS版準拠の黄色NEXT文字)
+    this.add.text(132, 45, 'NEXT', { fontSize: '15px', color: '#f1c40f', fontStyle: 'bold' }).setOrigin(0.5);
 
     // 連鎖演出用テキスト
     this.chainText = this.add.text(180, GRID_OFFSET_Y + 180, '', {
@@ -621,8 +687,8 @@ export class GameScene extends Phaser.Scene {
     gfx.lineStyle(6, 0x5a5410, 1);
     gfx.strokeRoundedRect(x, y, w, h, 16);
 
-    // 4. ボトルの「首」 (注ぎ口: 中央列 col 3, 4 の真上)
-    const neckX = x + 3 * CELL_SIZE;
+    // 4. ボトルの「首」 (注ぎ口: 中央列 col 2, 3 の真上)
+    const neckX = x + 2 * CELL_SIZE;
     const neckY = y - 20;
     const neckW = CELL_SIZE * 2;
     const neckH = 20;
@@ -682,19 +748,34 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
+
+    // 消去残像エフェクトの描画 (半透明)
+    this.fadingEffects.forEach(eff => {
+      const px = GRID_OFFSET_X + eff.col * CELL_SIZE;
+      const py = GRID_OFFSET_Y + eff.row * CELL_SIZE;
+      
+      this.gfx.save();
+      this.gfx.setAlpha(eff.alpha);
+      if (eff.type === 'germ') {
+        Germ.drawGerm(this.gfx, px, py, eff.color);
+      } else {
+        Capsule.drawBlock(this.gfx, px, py, eff.color, eff.dir);
+      }
+      this.gfx.restore();
+    });
   }
 
   private drawNext(): void {
     // HUDの右側に2つのカプセルを描画する
-    // 次カプセル
-    const nx1 = 200;
-    const ny1 = 30;
+    // 次カプセル (中央 col=2 の真上: 36 + 2*48 = 132px)
+    const nx1 = 132;
+    const ny1 = 70;
     Capsule.drawHalfCapsule(this.gfx, nx1, ny1, this.nextColors[0][0], 'left');
     Capsule.drawHalfCapsule(this.gfx, nx1 + CELL_SIZE, ny1, this.nextColors[0][1], 'right');
 
-    // 次々カプセル
-    const nx2 = 270;
-    const ny2 = 30;
+    // 次々カプセル (右隣にバランスよく配置)
+    const nx2 = 210;
+    const ny2 = 70;
     Capsule.drawHalfCapsule(this.gfx, nx2, ny2, this.nextColors[1][0], 'left');
     Capsule.drawHalfCapsule(this.gfx, nx2 + CELL_SIZE, ny2, this.nextColors[1][1], 'right');
   }
@@ -741,16 +822,8 @@ export class GameScene extends Phaser.Scene {
 
       // 1. 通常のカプセル（連結カプセル）が操作可能な場合
       if (this.capsule) {
-        // ヒットエリアの判定に上下左右 24px のマージン（パディング）を持たせる（タッチしやすくする）
-        const hitMargin = 24;
-        const expandedHitArea = new Phaser.Geom.Rectangle(
-          this.capsuleHitArea.x - hitMargin,
-          this.capsuleHitArea.y - hitMargin,
-          this.capsuleHitArea.width + hitMargin * 2,
-          this.capsuleHitArea.height + hitMargin * 2
-        );
-
-        if (expandedHitArea.contains(pointer.x, pointer.y)) {
+        // 画面上部（HUD領域）以外の場所をタップした場合は、すべてカプセルのドラッグ開始とみなす（操作性の劇的向上）
+        if (pointer.y > 60) {
           this.isDragging = true;
           this.pointerDownX = pointer.x;
           this.pointerDownY = pointer.y;
@@ -773,24 +846,48 @@ export class GameScene extends Phaser.Scene {
       const clickCol = Math.floor(gridX / CELL_SIZE);
       const clickRow = Math.floor(gridY / CELL_SIZE);
 
-      if (clickCol >= 0 && clickCol < GRID_COLS && clickRow >= 0 && clickRow < GRID_ROWS) {
-        const color = this.grid[clickRow][clickCol];
-        // タッチしたのが、ブロックかつ細菌ではない（＝カプセル由来のブロック）
-        if (color !== null && !this.germCells.has(`${clickRow},${clickCol}`)) {
-          // 下が空（＝落下可能なブロック）
-          const isFloating = (clickRow + 1 < GRID_ROWS && this.grid[clickRow + 1][clickCol] === null);
-          
-          if (isFloating) {
-            this.draggingBlock = {
-              row: clickRow,
-              col: clickCol,
-              color: color,
-              dir: this.gridDirs[clickRow][clickCol]
-            };
-            this.pointerDownX = pointer.x;
-            this.pointerDownY = pointer.y;
+      // タッチした座標の周囲1マス（自分自身を含む最大9マス）を走査して、最も近い「落下可能なブロック」を探す（操作性を高めるための余裕を持たせる）
+      let bestBlock: { row: number; col: number; dist: number } | null = null;
+
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const r = clickRow + dr;
+          const c = clickCol + dc;
+          if (r >= 0 && r < GRID_ROWS && c >= 0 && c < GRID_COLS) {
+            const color = this.grid[r][c];
+            // カプセル由来のブロック（細菌以外）であること
+            if (color !== null && !this.germCells.has(`${r},${c}`)) {
+              // 下が空（＝落下可能なブロック）
+              const isFloating = (r + 1 < GRID_ROWS && this.grid[r + 1][c] === null);
+              if (isFloating) {
+                // タッチされたグリッド中心からの距離を計算
+                const dx = (clickCol + 0.5) - (c + 0.5);
+                const dy = (clickRow + 0.5) - (r + 0.5);
+                const dist = dx * dx + dy * dy;
+
+                if (!bestBlock || dist < bestBlock.dist) {
+                  bestBlock = { row: r, col: c, dist: dist };
+                }
+              }
+            }
           }
         }
+      }
+
+      if (bestBlock) {
+        const { row, col } = bestBlock;
+        this.draggingBlock = {
+          row: row,
+          col: col,
+          color: this.grid[row][col]!,
+          dir: this.gridDirs[row][col]
+        };
+        this.pointerDownX = pointer.x;
+        this.pointerDownY = pointer.y;
+
+        // 指の下にある列と現在の単体ブロックの列の差分を計算
+        const colUnderPointer = Math.floor(gridX / CELL_SIZE);
+        this.touchColOffset = col - colUnderPointer;
       }
     });
 
@@ -810,15 +907,17 @@ export class GameScene extends Phaser.Scene {
         const colUnderPointer = Math.floor(gridX / CELL_SIZE);
         let targetCol = colUnderPointer + this.touchColOffset;
 
-        // 回転を考慮したクランプ
-        const blocks = this.capsule.getBlocks();
-        const cols = blocks.map(b => b.col);
-        const minCol = Math.min(...cols);
-        const maxCol = Math.max(...cols);
-        const widthCols = maxCol - minCol; // 0または1
+        // 回転状態に応じた最大・最小オフセットから、アンカーcolの可動域を正確にクランプ！ (180度回転最右列バグ完全解消)
+        const [off0, off1] = ROTATION_OFFSETS[this.capsule.rotation];
+        const minOffsetCol = Math.min(off0.col, off1.col);
+        const maxOffsetCol = Math.max(off0.col, off1.col);
 
-        if (targetCol < 0) targetCol = 0;
-        if (targetCol + widthCols >= GRID_COLS) targetCol = GRID_COLS - 1 - widthCols;
+        if (targetCol + minOffsetCol < 0) {
+          targetCol = -minOffsetCol;
+        }
+        if (targetCol + maxOffsetCol >= GRID_COLS) {
+          targetCol = GRID_COLS - 1 - maxOffsetCol;
+        }
 
         // 現在列からtargetColまで1列ずつ障害物をチェックしながら吸い付く
         let dir = Math.sign(targetCol - this.capsule.col);
@@ -842,23 +941,38 @@ export class GameScene extends Phaser.Scene {
       if (this.draggingBlock) {
         const gridX = pointer.x - GRID_OFFSET_X;
         const colUnderPointer = Math.floor(gridX / CELL_SIZE);
-        const targetCol = Phaser.Math.Clamp(colUnderPointer, 0, GRID_COLS - 1);
+        let targetCol = colUnderPointer + this.touchColOffset;
+        targetCol = Phaser.Math.Clamp(targetCol, 0, GRID_COLS - 1);
 
         const { row, col, color, dir } = this.draggingBlock;
 
         if (targetCol !== col) {
-          // 移動先セルが空であり、かつ細菌ではない場合のみ移動可能
-          if (this.grid[row][targetCol] === null) {
+          // カプセル同様、1マスずつ障害物をチェックしながら吸い付くように移動させる（堅牢なコリジョン）
+          let stepDir = Math.sign(targetCol - col);
+          let steps = Math.abs(targetCol - col);
+          let currentCol = col;
+
+          for (let i = 0; i < steps; i++) {
+            let nextCol = currentCol + stepDir;
+            // 移動先が空であり、細菌でないこと
+            if (this.grid[row][nextCol] === null) {
+              currentCol = nextCol;
+            } else {
+              break;
+            }
+          }
+
+          if (currentCol !== col) {
             // 元の位置をクリア
             this.grid[row][col] = null;
             this.gridDirs[row][col] = null;
 
             // 新しい位置へ移動
-            this.grid[row][targetCol] = color;
-            this.gridDirs[row][targetCol] = dir;
+            this.grid[row][currentCol] = color;
+            this.gridDirs[row][currentCol] = dir;
 
             // ドラッグ対象座標を更新
-            this.draggingBlock.col = targetCol;
+            this.draggingBlock.col = currentCol;
             
             // 再描画
             this.redraw();
@@ -885,8 +999,7 @@ export class GameScene extends Phaser.Scene {
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist <= 10) {
-        if (this.canRotate()) {
-          this.capsule.rotate();
+        if (this.tryRotate()) {
           this.soundManager.playTone(330, 'sine', 0.05, 0.08); // キュッという高音
         }
       }

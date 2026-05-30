@@ -21,7 +21,7 @@ export class TitleScene extends Phaser.Scene {
       color: '#8899aa',
     }).setOrigin(0.5);
 
-    const startText = this.add.text(cx, cy + 180, '画面をタッチしてスタート', {
+    const startText = this.add.text(cx, cy + 230, '画面をタッチしてスタート', {
       fontSize: '20px',
       color: '#f1c40f',
       padding: { top: 6, bottom: 6 }
@@ -52,6 +52,11 @@ export class TitleScene extends Phaser.Scene {
       { text: 'むずかしい', key: 'hard', color: '#e74c3c', y: cy + 90 }
     ];
 
+    let canSelect = false;
+    this.time.delayedCall(300, () => {
+      canSelect = true;
+    });
+
     options.forEach(opt => {
       const btnBg = this.add.rectangle(cx, opt.y, 220, 48, 0x112244, 0.8)
         .setStrokeStyle(2, 0x4a90d9)
@@ -76,6 +81,7 @@ export class TitleScene extends Phaser.Scene {
       });
 
       btnBg.on('pointerdown', () => {
+        if (!canSelect) return;
         this.scene.start('GameScene', { difficulty: opt.key });
       });
     });

@@ -27,12 +27,13 @@ export const ROTATION_OFFSETS: [BlockOffset, BlockOffset][] = [
   [{ col: 0, row: 0 }, { col: 0, row: -1 }],
 ];
 
-export const CELL_SIZE = 32;
-export const GRID_COLS = 8;
-export const GRID_ROWS = 16;
+// DS版『もっと脳トレ』の「細菌撲滅」仕様にボトルサイズを変更し、スマホ用にセルを拡大
+export const CELL_SIZE = 48; // 32から48へ一回り大幅に拡大 (スマホ視認性向上)
+export const GRID_COLS = 6;  // DS版準拠の6列仕様
+export const GRID_ROWS = 11; // DS版準拠の11行仕様
 
 const DEG_TO_RAD = Math.PI / 180;
-const CORNER_RADIUS = 3; // 四角寄りにするための極小角丸半径 (DS風)
+const CORNER_RADIUS = 5; // CELL_SIZE拡大に伴い、角丸半径もバランス良く3から5へ調整
 
 /** getBlocks() の戻り値型 */
 export interface BlockInfo {
@@ -109,6 +110,14 @@ export class Capsule {
     graphics.fillStyle(color, 1);
     graphics.fillRoundedRect(x + pad, y + pad, size, size, CORNER_RADIUS);
 
+    // ぷっくり光沢の重ね合わせ（上半分の淡い白グラデーション）
+    graphics.fillStyle(0xffffff, 0.12);
+    graphics.fillRoundedRect(x + pad, y + pad, size, size / 2, CORNER_RADIUS);
+
+    // 上部の白いハイライト光沢帯
+    graphics.fillStyle(0xffffff, 0.35);
+    graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
+
     // 枠線（太枠）
     graphics.lineStyle(3, 0x050510, 1);
     graphics.strokeRoundedRect(x + pad, y + pad, size, size, CORNER_RADIUS);
@@ -141,6 +150,12 @@ export class Capsule {
       graphics.closePath();
       graphics.fillPath();
 
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
+
       // 外枠（完全に閉じた太線）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
@@ -164,6 +179,12 @@ export class Capsule {
       graphics.lineTo(x, y + pad + size);
       graphics.closePath();
       graphics.fillPath();
+
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
 
       // 外枠
       graphics.lineStyle(3, 0x050510, 1);
@@ -189,6 +210,12 @@ export class Capsule {
       graphics.closePath();
       graphics.fillPath();
 
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
+
       // 外枠
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
@@ -212,6 +239,12 @@ export class Capsule {
       graphics.arc(x + pad + CORNER_RADIUS, y + CELL_SIZE - pad - CORNER_RADIUS, CORNER_RADIUS, DEG_TO_RAD * 90, DEG_TO_RAD * 180, false);
       graphics.closePath();
       graphics.fillPath();
+
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
 
       // 外枠
       graphics.lineStyle(3, 0x050510, 1);
@@ -254,6 +287,12 @@ export class Capsule {
       graphics.closePath();
       graphics.fillPath();
 
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
+
       // 太い外枠（右端の縦線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
@@ -276,6 +315,12 @@ export class Capsule {
       graphics.lineTo(x, y + pad + size);
       graphics.closePath();
       graphics.fillPath();
+
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
 
       // 太い外枠（左端の縦線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
@@ -307,6 +352,12 @@ export class Capsule {
       graphics.closePath();
       graphics.fillPath();
 
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
+
       // 太い外枠（下端の横線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
       graphics.beginPath();
@@ -330,6 +381,12 @@ export class Capsule {
       graphics.lineTo(x + pad, y);
       graphics.closePath();
       graphics.fillPath();
+
+      // ぷっくり光沢の重ね合わせ
+      graphics.fillStyle(0xffffff, 0.12);
+      graphics.fillRect(x + pad, y + pad, size, size / 2);
+      graphics.fillStyle(0xffffff, 0.35);
+      graphics.fillRoundedRect(x + pad + 4, y + pad + 4, size - 8, 4, 2);
 
       // 太い外枠（上端の横線は描かない）
       graphics.lineStyle(3, 0x050510, 1);
