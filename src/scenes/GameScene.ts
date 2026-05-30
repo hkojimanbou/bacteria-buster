@@ -490,6 +490,18 @@ export class GameScene extends Phaser.Scene {
       });
       this.redraw();
 
+      // 細菌が全滅したか即座に判定（ちぎれブロックの落下やスコア演出を待たずに即クリア！）
+      if (this.germCells.size === 0) {
+        const addScore = (toDelete.size * 100) + (this.chainCount * 50);
+        this.score += addScore;
+        this.showScorePopup(toDelete, addScore);
+        
+        // 残像が綺麗に見えるように200msだけ待ってから即クリア！
+        await this.delay(200);
+        this.showClear();
+        return;
+      }
+
       // スコア計算・ポップアップ表示 (着地後 300ms)
       await this.delay(80); // (220ms + 80ms = 300ms)
       const addScore = (toDelete.size * 100) + (this.chainCount * 50);
@@ -508,7 +520,7 @@ export class GameScene extends Phaser.Scene {
         }
       }
 
-      // 面クリア判定
+      // 面クリア判定（連鎖の過程で全滅した際のためのセーフティ）
       if (this.germCells.size === 0) {
         this.showClear();
         return;
