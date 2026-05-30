@@ -754,14 +754,13 @@ export class GameScene extends Phaser.Scene {
       const px = GRID_OFFSET_X + eff.col * CELL_SIZE;
       const py = GRID_OFFSET_Y + eff.row * CELL_SIZE;
       
-      this.gfx.save();
       this.gfx.setAlpha(eff.alpha);
       if (eff.type === 'germ') {
         Germ.drawGerm(this.gfx, px, py, eff.color);
       } else {
         Capsule.drawBlock(this.gfx, px, py, eff.color, eff.dir);
       }
-      this.gfx.restore();
+      this.gfx.setAlpha(1.0); // 描画直後に即時アルファ値を1.0にリセット！ (全画面真っ黒バグの解消)
     });
   }
 
