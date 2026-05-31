@@ -7,7 +7,6 @@ export const NOTES: { [key: string]: number } = {
 
 type NoteObj = { note: string, dur: number };
 
-// --- 通常版 (細菌撲滅 I / II) ---
 const saikin1Song: NoteObj[] = [
     {note: 'A4', dur: 0.5}, {note: 'B4', dur: 0.5}, {note: 'C5', dur: 1}, {note: 'A4', dur: 1},
     {note: 'E5', dur: 1}, {note: 'D5', dur: 1}, {note: 'C5', dur: 1}, {note: 'B4', dur: 1},
@@ -28,7 +27,6 @@ const saikin2Song: NoteObj[] = [
     {note: 'B4', dur: 4}
 ];
 
-// --- 特別版 (うさぎ紳士 / 辺境でこんにちは) ---
 const usagiSong: NoteObj[] = [
     {note: 'E4', dur: 1}, {note: 'F4', dur: 1}, {note: 'G4', dur: 1},
     {note: 'E4', dur: 1}, {note: 'F4', dur: 1}, {note: 'G4', dur: 1},
@@ -61,43 +59,52 @@ const henkyoSong: NoteObj[] = [
 export class SoundManager {
   private ctx: AudioContext;
   private isBGMPlaying = false;
-  private bgmTimeouts: any[] = [];
+  private activeOscillators: OscillatorNode[] = [];
+  private loopTimeoutId: any = null;
+  private nextStartTime: number = 0;
 
-  constructor() {
-    this.ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  constructor(audioContext?: AudioContext) {
+    this.ctx = audioContext || new (window.AudioContext || (window as any).webkitAudioContext)();
+    
+    // Fallback: unlock on first interaction if still suspended
+    const unlock = () => {
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
+      window.removeEventListener('click', unlock);
+    };
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
+    window.addEventListener('click', unlock);
   }
 
-  /** カプセル着地音：短い低音（音量と発音を最適化） */
   playLand(): void {
     this.playTone(180, 'sine', 0.15, 0.15);
   }
 
-  /** ブロック消去音：明るい高音 */
   playClear(): void {
     this.playTone(880, 'square', 0.12, 0.18);
   }
 
-  /** 連鎖音：消去音より高く */
   playChain(chainCount: number): void {
     const freq = 880 + chainCount * 220;
     this.playTone(freq, 'square', 0.12, 0.2);
   }
 
-  /** クリア音：明るい和音風 */
   playGameClear(): void {
     [523, 659, 784].forEach((freq, i) => {
       setTimeout(() => this.playTone(freq, 'sine', 0.15, 0.4), i * 120);
     });
   }
 
-  /** ゲームオーバー音：暗い下降音 */
   playGameOver(): void {
     [400, 300, 200].forEach((freq, i) => {
       setTimeout(() => this.playTone(freq, 'sawtooth', 0.15, 0.3), i * 150);
     });
   }
 
-  /** カウントダウン電子音の完全再現 */
   playCountdownBeep(isStart: boolean): void {
     if (isStart) {
       this.playTone(1320, 'sine', 0.2, 0.18);
@@ -106,39 +113,27 @@ export class SoundManager {
     }
   }
 
-  /** BGMの再生開始（レベルに応じて選曲） */
   startBGM(level: number = 1): void {
     if (this.isBGMPlaying) return;
     this.isBGMPlaying = true;
     this.stopBGMInternal();
 
-    // ユーザーインタラクション制限対策
     if (this.ctx.state === 'suspended') {
-      const resumeAudio = () => {
-        if (this.isBGMPlaying) {
-          this.ctx.resume().catch(() => {});
-        }
-        window.removeEventListener('click', resumeAudio);
-        window.removeEventListener('pointerdown', resumeAudio);
-        window.removeEventListener('keydown', resumeAudio);
-      };
-      window.addEventListener('click', resumeAudio);
-      window.addEventListener('pointerdown', resumeAudio);
-      window.addEventListener('keydown', resumeAudio);
       this.ctx.resume().catch(() => {});
     }
 
-    this.playSongLoop(level);
+    // Initialize nextStartTime to slightly in the future to ensure clean playback
+    this.nextStartTime = this.ctx.currentTime + 0.05;
+    this.scheduleSongLoop(level);
   }
 
-  private playSongLoop(level: number): void {
+  private scheduleSongLoop(level: number): void {
     if (!this.isBGMPlaying) return;
 
     let song: NoteObj[] = [];
     let stepTime = 0;
     let waveType: OscillatorType = 'square';
     
-    // 20回以降の10回ごとは特別版（うさぎ紳士 / 辺境でこんにちは）
     const isSpecial = (level >= 20 && level % 10 === 0);
 
     if (isSpecial) {
@@ -161,50 +156,55 @@ export class SoundManager {
       }
     }
 
-    let currentTime = this.ctx.currentTime;
-    
+    // If context is still suspended, currentTime will be 0. We must ensure nextStartTime is at least 0.
+    if (this.nextStartTime < this.ctx.currentTime) {
+      this.nextStartTime = this.ctx.currentTime + 0.05;
+    }
+
     song.forEach((noteObj) => {
       const duration = noteObj.dur * stepTime;
       if (noteObj.note !== 'R' && NOTES[noteObj.note]) {
-        let t = setTimeout(() => {
-          if (!this.isBGMPlaying) return;
-          this.playBGMTone(NOTES[noteObj.note], duration, waveType);
-        }, Math.max(0, (currentTime - this.ctx.currentTime)) * 1000);
-        this.bgmTimeouts.push(t);
+        this.scheduleBGMTone(NOTES[noteObj.note], this.nextStartTime, duration, waveType);
       }
-      currentTime += duration;
+      this.nextStartTime += duration;
     });
 
-    // 次のループをスケジュール
-    let endTimeout = setTimeout(() => {
+    // We schedule the next loop slightly before the current one finishes.
+    const lookaheadTime = 0.5; // schedule next loop 0.5 seconds before it starts
+    const timeUntilNextLoop = this.nextStartTime - this.ctx.currentTime - lookaheadTime;
+    
+    this.loopTimeoutId = setTimeout(() => {
       if (this.isBGMPlaying) {
-        this.playSongLoop(level);
+        this.scheduleSongLoop(level);
       }
-    }, Math.max(0, (currentTime - this.ctx.currentTime)) * 1000);
-    this.bgmTimeouts.push(endTimeout);
+    }, Math.max(0, timeUntilNextLoop * 1000));
   }
 
-  /** BGMの停止 */
   stopBGM(): void {
     this.isBGMPlaying = false;
     this.stopBGMInternal();
   }
 
   private stopBGMInternal(): void {
-    this.bgmTimeouts.forEach(t => clearTimeout(t));
-    this.bgmTimeouts = [];
+    if (this.loopTimeoutId) {
+      clearTimeout(this.loopTimeoutId);
+      this.loopTimeoutId = null;
+    }
+    
+    // Stop all actively scheduled oscillators instantly
+    this.activeOscillators.forEach(osc => {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch (e) {}
+    });
+    this.activeOscillators = [];
   }
 
-  /** 低遅延効果音用 Web Audio API 発音関数 */
-  public playTone(
-    frequency: number,
-    type: OscillatorType,
-    volume: number,
-    duration: number
-  ): void {
+  public playTone(frequency: number, type: OscillatorType, volume: number, duration: number): void {
     try {
       if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
+        this.ctx.resume().catch(() => {});
       }
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
@@ -222,27 +222,43 @@ export class SoundManager {
     } catch (e) {}
   }
 
-  /** BGM専用発音メソッド（エンベロープ調整） */
-  private playBGMTone(freq: number, duration: number, type: OscillatorType): void {
+  private scheduleBGMTone(freq: number, startTime: number, duration: number, type: OscillatorType): void {
     try {
-      if (this.ctx.state === 'suspended') {
-        this.ctx.resume();
-      }
       const osc = this.ctx.createOscillator();
       const gainNode = this.ctx.createGain();
       
       osc.type = type; 
       osc.frequency.value = freq;
       
-      gainNode.gain.setValueAtTime(0, this.ctx.currentTime);
-      gainNode.gain.linearRampToValueAtTime(0.12, this.ctx.currentTime + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration - 0.02);
+      // Ensure positive ramp start to avoid exponentialRampToValueAtTime zero constraint
+      gainNode.gain.setValueAtTime(0.001, startTime);
+      gainNode.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
+      
+      const endTime = startTime + duration - 0.02;
+      if (endTime > startTime + 0.02) {
+        gainNode.gain.exponentialRampToValueAtTime(0.001, endTime);
+      } else {
+        gainNode.gain.setValueAtTime(0.001, startTime + duration);
+      }
       
       osc.connect(gainNode);
       gainNode.connect(this.ctx.destination);
       
-      osc.start(this.ctx.currentTime);
-      osc.stop(this.ctx.currentTime + duration);
-    } catch (e) {}
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+
+      this.activeOscillators.push(osc);
+      
+      osc.onended = () => {
+        const idx = this.activeOscillators.indexOf(osc);
+        if (idx > -1) {
+          this.activeOscillators.splice(idx, 1);
+        }
+        osc.disconnect();
+        gainNode.disconnect();
+      };
+    } catch (e) {
+      console.error('BGM Scheduling Error', e);
+    }
   }
 }
