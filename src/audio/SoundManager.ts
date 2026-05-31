@@ -124,6 +124,7 @@ export class SoundManager {
 
     // Initialize nextStartTime to slightly in the future to ensure clean playback
     this.nextStartTime = this.ctx.currentTime + 0.05;
+    console.log('[SoundManager] Starting BGM loop, level:', level, 'nextStart:', this.nextStartTime);
     this.scheduleSongLoop(level);
   }
 
@@ -232,7 +233,7 @@ export class SoundManager {
       
       // Ensure positive ramp start to avoid exponentialRampToValueAtTime zero constraint
       gainNode.gain.setValueAtTime(0.001, startTime);
-      gainNode.gain.linearRampToValueAtTime(0.12, startTime + 0.02);
+      gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
       
       const endTime = startTime + duration - 0.02;
       if (endTime > startTime + 0.02) {

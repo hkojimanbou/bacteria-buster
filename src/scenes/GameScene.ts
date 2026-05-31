@@ -102,7 +102,7 @@ export class GameScene extends Phaser.Scene {
 
   create(): void {
     this.gfx = this.add.graphics();
-    this.soundManager = new SoundManager();
+    this.soundManager = new SoundManager((this.sound as any).context as AudioContext);
 
     // カプセル衝突判定用ヒットエリアの初期化
     this.capsuleHitArea = new Phaser.Geom.Rectangle(0, 0, 0, 0);
