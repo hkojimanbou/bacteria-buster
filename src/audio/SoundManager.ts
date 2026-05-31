@@ -138,15 +138,6 @@ export class SoundManager {
     const isSpecial = (level >= 20 && level % 10 === 0);
 
     if (isSpecial) {
-      waveType = 'triangle';
-      if (Math.random() < 0.5) {
-        song = usagiSong;
-        stepTime = 60 / 130;
-      } else {
-        song = henkyoSong;
-        stepTime = 60 / 110;
-      }
-    } else {
       waveType = 'square';
       if (Math.random() < 0.5) {
         song = saikin1Song;
@@ -154,6 +145,15 @@ export class SoundManager {
       } else {
         song = saikin2Song;
         stepTime = 60 / 130;
+      }
+    } else {
+      waveType = 'triangle';
+      if (Math.random() < 0.5) {
+        song = usagiSong;
+        stepTime = 60 / 130;
+      } else {
+        song = henkyoSong;
+        stepTime = 60 / 110;
       }
     }
 
