@@ -69,6 +69,9 @@ export class GameScene extends Phaser.Scene {
 
   private isGameOver: boolean = false;
   private isGameClear: boolean = false;
+  private isPaused: boolean = false;
+  private fastDropChain: boolean = false;
+  private pauseOverlay!: Phaser.GameObjects.Group;
 
   constructor() {
     super({ key: 'GameScene' });
@@ -96,6 +99,8 @@ export class GameScene extends Phaser.Scene {
     this.isGameOver = false;
     this.isGameClear = false;
     this.isDragging = false;
+    this.isPaused = false;
+    this.fastDropChain = false;
     this.isBlinking = false;
     this.fadingEffects = [];
   }
@@ -148,7 +153,7 @@ export class GameScene extends Phaser.Scene {
       this.redraw();
     }
 
-    if (this.isCountingDown || this.isGameOver || this.isGameClear) return;
+    if (this.isCountingDown || this.isGameOver || this.isGameClear || this.isPaused) return;
     if (!this.capsule) return;
 
     // すぐ下が床や他のブロックであれば、沈み込ませずに即座に着地させる（重なりバグ完全解消）
@@ -512,11 +517,16 @@ export class GameScene extends Phaser.Scene {
       await this.delay(100); // (300ms + 100ms = 400ms)
 
       let moved = true;
+      this.fastDropChain = false;
       while (moved) {
         moved = this.applyGravity();
         if (moved) {
           this.redraw();
-          await this.delay(600); // 浮きブロック落下テンポを80msから600msに減速してプレイヤーの操作猶予を確保！
+          // 高速落下対応の割り込み可能な待機ループ (最大600ms = 15ms x 40)
+          for (let i = 0; i < 40; i++) {
+            if (this.fastDropChain) break;
+            await this.delay(15);
+          }
         }
       }
 
@@ -673,6 +683,36 @@ export class GameScene extends Phaser.Scene {
       stroke: '#ffffff',
       strokeThickness: 4
     }).setOrigin(0.5).setVisible(false).setDepth(40);
+
+    // 一時停止ボタン
+    const pauseBtn = this.add.text(this.scale.width - 50, 20, '⏸️', { fontSize: '24px' }).setOrigin(0.5).setInteractive();
+    pauseBtn.on('pointerdown', () => {
+      if (this.isCountingDown || this.isGameOver || this.isGameClear) return;
+      this.isPaused = !this.isPaused;
+      if (this.isPaused) {
+        this.soundManager.pauseBGM();
+        this.pauseOverlay.setVisible(true);
+      } else {
+        this.soundManager.resumeBGM();
+        this.pauseOverlay.setVisible(false);
+      }
+    });
+
+    // 一時停止オーバーレイ
+    this.pauseOverlay = this.add.group();
+    const cx = this.scale.width / 2;
+    const cy = this.scale.height / 2;
+    const bg = this.add.rectangle(cx, cy, this.scale.width, this.scale.height, 0x000000, 0.7).setInteractive();
+    bg.on('pointerdown', () => {
+      this.isPaused = false;
+      this.soundManager.resumeBGM();
+      this.pauseOverlay.setVisible(false);
+    });
+    const pauseText = this.add.text(cx, cy, 'PAUSE', { fontSize: '48px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5);
+    this.pauseOverlay.addMultiple([bg, pauseText]);
+    this.pauseOverlay.setDepth(300);
+    this.pauseOverlay.setVisible(false);
+
   }
 
   private drawGrid(): void {
@@ -775,6 +815,12 @@ export class GameScene extends Phaser.Scene {
       } else {
         Capsule.drawBlock(this.gfx, px, py, blendedColor, eff.dir);
       }
+      
+      // 光る残像エフェクト（グロウ円形）
+      this.gfx.lineStyle(4, 0x88ffff, Math.min(eff.alpha * 1.5, 1));
+      this.gfx.strokeCircle(px + 24, py + 24, 20);
+      this.gfx.fillStyle(0xffffff, Math.min(eff.alpha * 0.5, 1));
+      this.gfx.fillCircle(px + 24, py + 24, 16);
     });
   }
 
@@ -849,6 +895,24 @@ export class GameScene extends Phaser.Scene {
           // タッチ中の落下減速
           this.capsule.fallSpeed = FALL_SPEED_SLOW;
           return; // 連結カプセルのドラッグが開始されたので終了
+        }
+      }
+
+      
+      // 3. 連鎖ブロック落下中の高速落下対応
+      if (this.clearingCells.size === 0 && !this.capsule) {
+        // 空中ブロックが存在するかチェック
+        let hasFloating = false;
+        for (let r = 0; r < GRID_ROWS - 1; r++) {
+          for (let c = 0; c < GRID_COLS; c++) {
+            if (this.grid[r][c] !== null && !this.germCells.has(`${r},${c}`) && this.grid[r+1][c] === null) {
+              hasFloating = true; break;
+            }
+          }
+        }
+        if (hasFloating) {
+          this.fastDropChain = true;
+          return;
         }
       }
 
@@ -952,6 +1016,11 @@ export class GameScene extends Phaser.Scene {
 
       // B. 単体ブロックをドラッグしている場合
       if (this.draggingBlock) {
+        const dy = pointer.y - this.pointerDownY;
+        if (dy > 30) {
+          this.fastDropChain = true;
+        }
+
         const gridX = pointer.x - GRID_OFFSET_X;
         const colUnderPointer = Math.floor(gridX / CELL_SIZE);
         let targetCol = colUnderPointer + this.touchColOffset;

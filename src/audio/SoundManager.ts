@@ -181,6 +181,18 @@ export class SoundManager {
     }, Math.max(0, timeUntilNextLoop * 1000));
   }
 
+  pauseBGM(): void {
+    if (this.ctx.state === 'running') {
+      this.ctx.suspend().catch(() => {});
+    }
+  }
+
+  resumeBGM(): void {
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+  }
+
   stopBGM(): void {
     this.isBGMPlaying = false;
     this.stopBGMInternal();
