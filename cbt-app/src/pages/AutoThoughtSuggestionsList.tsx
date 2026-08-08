@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lightbulb, Star, ExternalLink, Loader2, Filter } from 'lucide-react';
+import { ArrowLeft, Lightbulb, Star, ExternalLink, Loader2, Filter, Trash2 } from 'lucide-react';
 import { getAllTrainings, saveTraining } from '../utils/storage';
 import { useAuth } from '../hooks/useAuth';
 import type { AutoThoughtCatchData, AISuggestedThought } from '../types';
@@ -91,6 +91,32 @@ export function AutoThoughtSuggestionsList() {
     }
   };
 
+  const handleDelete = async (item: SuggestionItem) => {
+    if (!user) return;
+    if (!window.confirm('この自動思考案をリストから削除しますか？\n※元の記録自体は削除されません')) return;
+    
+    try {
+      // 画面のStateを先に更新
+      setItems(prev => prev.filter(i => i.thought.id !== item.thought.id));
+
+      // DBを更新
+      const all = await getAllTrainings(user.uid);
+      const targetTraining = all.find(t => t.id === item.trainingId) as AutoThoughtCatchData;
+      if (targetTraining && targetTraining.ai_thoughts) {
+        const updatedAiThoughts = targetTraining.ai_thoughts.filter(t => t.id !== item.thought.id);
+        
+        await saveTraining(user.uid, {
+          ...targetTraining,
+          ai_thoughts: updatedAiThoughts,
+          updatedAt: new Date().toISOString()
+        });
+      }
+    } catch (err) {
+      console.error('Failed to delete thought suggestion', err);
+      alert('削除に失敗しました。');
+    }
+  };
+
   const filteredItems = filter === 'all' 
     ? items 
     : items.filter(item => item.thought.isBookmarked);
@@ -175,15 +201,25 @@ export function AutoThoughtSuggestionsList() {
                     <span className="text-blue-500 shrink-0 mt-0.5">◆</span>
                     <span>{item.thought.text}</span>
                   </p>
-                  <button
-                    onClick={() => toggleBookmark(item)}
-                    className="shrink-0 p-2 -mr-2 -mt-2 rounded-full hover:bg-yellow-50 transition-colors"
-                  >
-                    <Star 
-                      size={22} 
-                      className={item.thought.isBookmarked ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 group-hover:text-yellow-200'} 
-                    />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => toggleBookmark(item)}
+                      className="shrink-0 p-2 rounded-full hover:bg-yellow-50 transition-colors"
+                      title="ブックマーク"
+                    >
+                      <Star 
+                        size={22} 
+                        className={item.thought.isBookmarked ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300 group-hover:text-yellow-200'} 
+                      />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item)}
+                      className="shrink-0 p-2 rounded-full hover:bg-red-50 transition-colors text-gray-300 hover:text-red-400"
+                      title="削除"
+                    >
+                      <Trash2 size={20} />
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between">
