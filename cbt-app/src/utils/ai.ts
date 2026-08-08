@@ -130,3 +130,43 @@ export async function suggestAutoThoughts(
     return ['AIの分析に失敗しました'];
   }
 }
+
+/**
+ * 認知再構成法のSTEP1, 4, 5をもとに、STEP6（反証）のアイデアを10個生成する
+ */
+export async function suggestCounterEvidences(
+  autoThought: string,
+  evidence: string,
+  rewrite: string
+): Promise<string[]> {
+  try {
+    const ai = getAiClient();
+    const prompt = `あなたは優秀な認知行動療法のカウンセラーです。
+クライアントが認知再構成法のワークで以下のように記入しました。
+
+【自動思考】: ${autoThought || '未入力'}
+【その根拠】: ${evidence || '未入力'}
+【部分否定文（リライト）】: ${rewrite || '未入力'}
+
+この「部分否定文」が仮に正しい（現実的である）とした場合の根拠（＝元の自動思考に対する反証）のアイデアを10個提案してください。
+クライアントが「確かにそうかもしれない」と思えるような、わずかな可能性や過去の事実、別視点からの解釈を簡潔な短文で提示してください。
+例：「たまたま相手の機嫌が悪かっただけかもしれない」「過去にはうまくいった経験もある」「他の人も同じようなミスをしている」など。
+
+回答は10個のアイデアのみを出力し、各案は改行で区切ってください（箇条書きの「・」や「1.」などの記号、余計な前置きや解説は一切不要です）。`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-flash-latest',
+      contents: prompt,
+    });
+
+    const text = response.text || '';
+    // 空行やハイフン、数字付きリストの記号などを除去して配列にする
+    return text.split('\n')
+      .map(line => line.replace(/^[\d・\-\.\s]+/, '').trim())
+      .filter(line => line.length > 0)
+      .slice(0, 10);
+  } catch (error) {
+    console.error('AI Counter Evidence Suggestion Error:', error);
+    return ['AIの分析に失敗しました'];
+  }
+}

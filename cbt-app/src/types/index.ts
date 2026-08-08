@@ -33,10 +33,11 @@ export interface CognitiveRestructuringData extends BaseTrainingData {
   step4_evidence: string;
   step5_rewrite: string;
   step6_counterEvidence: string;
+  ai_suggested_counter_evidences?: string[]; // AIが提案した反証アイデア10個
   step7_1_emotions: string[];
   step7_2_actions: string[];
   step8_score: number | null;
-  step9_cognitiveDistortions: string[];
+  step9_cognitiveDistortions: string[]; // 選択された認知の歪みのID配列
 }
 
 export type TrainingData = AutoThoughtCatchData | CognitiveRestructuringData;

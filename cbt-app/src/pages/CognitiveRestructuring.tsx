@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Copy, Check, HelpCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Save, Copy, Check, HelpCircle, ChevronDown, ChevronUp, Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { SelectWithAdd } from '../components/SelectWithAdd';
 import { NRSSlider } from '../components/NRSSlider';
 import { TrainingGuide } from '../components/TrainingGuide';
@@ -8,7 +8,7 @@ import { CheckboxList, type CheckboxOption } from '../components/CheckboxList';
 import { AITitleGenerator } from '../components/AITitleGenerator';
 import { useAutoSave } from '../hooks/useAutoSave';
 import { saveTraining, getTrainingCountByType, getAllTrainings, generateId } from '../utils/storage';
-import { generateTitleFromThought } from '../utils/ai';
+import { generateTitleFromThought, suggestCounterEvidences } from '../utils/ai';
 import { useAuth } from '../hooks/useAuth';
 import type { CognitiveRestructuringData, TrainingData } from '../types';
 import { PopoverGuide } from '../components/PopoverGuide';
@@ -60,6 +60,7 @@ export function CognitiveRestructuring() {
   const [isGuideOpen, setIsGuideOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
   const [isGeneratingTitle, setIsGeneratingTitle] = React.useState(false);
+  const [isGeneratingCounterEvidence, setIsGeneratingCounterEvidence] = React.useState(false);
   const DRAFT_KEY = id ? `edit_cognitiveRestructuring_${id}` : 'draft_cognitiveRestructuring_new';
   
   const { user } = useAuth();
@@ -124,6 +125,27 @@ export function CognitiveRestructuring() {
       alert('タイトルの生成に失敗しました。');
     } finally {
       setIsGeneratingTitle(false);
+    }
+  };
+
+  const handleSuggestCounterEvidences = async () => {
+    if (!formData.step1_autoThought) {
+      alert('AIが分析するための情報が足りません。STEP1(自動思考)を入力してください。');
+      return;
+    }
+    
+    setIsGeneratingCounterEvidence(true);
+    try {
+      const suggestions = await suggestCounterEvidences(
+        formData.step1_autoThought || '',
+        formData.step4_evidence || '',
+        formData.step5_rewrite || ''
+      );
+      handleChange('ai_suggested_counter_evidences', suggestions);
+    } catch (err) {
+      alert('反証アイデアの生成に失敗しました。');
+    } finally {
+      setIsGeneratingCounterEvidence(false);
     }
   };
 
@@ -338,10 +360,68 @@ ${formData.step9_cognitiveDistortions?.length ? formData.step9_cognitiveDistorti
             <PopoverGuide content="想像を膨らませすぎた根拠のない妄想や断定は避け、「〜かもしれない」「〜の可能性がある」といった含みを持たせた表現を使うのがコツです。過去の経験など、わずかでも根拠がある可能性を探ってください。" />
           </label>
           <textarea
-            className="form-textarea"
+            className="form-textarea mb-4"
             value={formData.step6_counterEvidence || ''}
             onChange={(e) => handleChange('step6_counterEvidence', e.target.value)}
           />
+
+          {/* AI反証アイデア生成BOX */}
+          <div className="bg-indigo-50/50 p-4 rounded-lg border border-indigo-100">
+            <div className="flex justify-between items-center mb-3">
+              <span className="text-sm font-bold text-indigo-700 flex items-center gap-1.5">
+                <Sparkles size={16} /> AIに反証のヒントをもらう
+              </span>
+            </div>
+            
+            <p className="text-xs text-gray-600 mb-3">
+              ※STEP1(自動思考), STEP4(根拠), STEP5(否定文)をもとに、反証のアイデアをAIが10個提案します。
+            </p>
+            
+            {!formData.ai_suggested_counter_evidences || formData.ai_suggested_counter_evidences.length === 0 ? (
+              <button 
+                onClick={handleSuggestCounterEvidences}
+                disabled={isGeneratingCounterEvidence}
+                className="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white border-none py-2 shadow-sm flex items-center justify-center gap-2 transition-all text-sm"
+              >
+                {isGeneratingCounterEvidence ? (
+                  <><Loader2 size={16} className="animate-spin" /> アイデアを生成中...</>
+                ) : (
+                  <><Sparkles size={16} /> 反証アイデアを10個生成する</>
+                )}
+              </button>
+            ) : (
+              <div className="bg-white rounded border border-indigo-100 p-3 shadow-inner">
+                <p className="text-xs text-indigo-500 font-medium mb-2 flex justify-between items-center">
+                  <span>タップすると上のテキストボックスに追記されます</span>
+                  <button 
+                    onClick={handleSuggestCounterEvidences}
+                    disabled={isGeneratingCounterEvidence}
+                    className="text-indigo-600 hover:bg-indigo-50 p-1 rounded transition-colors"
+                    title="再生成する"
+                  >
+                    {isGeneratingCounterEvidence ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                  </button>
+                </p>
+                <ul className="space-y-2 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
+                  {formData.ai_suggested_counter_evidences.map((evidence, idx) => (
+                    <li key={idx}>
+                      <button
+                        onClick={() => {
+                          const currentText = formData.step6_counterEvidence || '';
+                          const newText = currentText ? currentText + '\n・' + evidence : '・' + evidence;
+                          handleChange('step6_counterEvidence', newText);
+                        }}
+                        className="w-full text-left text-sm text-gray-700 hover:bg-indigo-50 p-2 rounded-md transition-colors border border-transparent hover:border-indigo-100 flex items-start gap-2 group"
+                      >
+                        <span className="text-indigo-400 font-bold shrink-0 mt-0.5">{idx + 1}.</span>
+                        <span>{evidence}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* STEP 7 */}
