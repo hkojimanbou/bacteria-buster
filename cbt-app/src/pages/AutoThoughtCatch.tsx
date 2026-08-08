@@ -214,15 +214,6 @@ ${formData.nrs_score !== null && formData.nrs_score !== undefined ? formData.nrs
 
       <TrainingGuide type="autoThoughtCatch" isOpen={isGuideOpen} />
 
-      <div className="glass-card mb-6">
-        <AITitleGenerator 
-          currentTitle={formData.title || ''} 
-          onTitleChange={(val) => handleChange('title', val)}
-          onGenerate={handleGenerateTitle}
-          isGenerating={isGeneratingTitle}
-        />
-      </div>
-
       <div className="glass-card mb-6 space-y-8">
         
         <div className="form-group bg-blue-50/50 p-4 rounded-lg border border-blue-100">
@@ -252,6 +243,13 @@ ${formData.nrs_score !== null && formData.nrs_score !== undefined ? formData.nrs
             </button>
           </div>
         </div>
+
+        <AITitleGenerator 
+          currentTitle={formData.title || ''} 
+          onTitleChange={(val) => handleChange('title', val)}
+          onGenerate={handleGenerateTitle}
+          isGenerating={isGeneratingTitle}
+        />
 
         <div className="flex justify-center -my-4">
           <div className="w-1 h-8 bg-gray-200"></div>

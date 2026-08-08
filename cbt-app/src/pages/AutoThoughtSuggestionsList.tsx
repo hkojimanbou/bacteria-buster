@@ -109,9 +109,10 @@ export function AutoThoughtSuggestionsList() {
         <div className="flex w-full items-center justify-between">
           <button 
             onClick={() => navigate('/')} 
-            className="text-gray-500 hover:text-gray-800 transition-colors p-2 -ml-2 rounded-full hover:bg-gray-100"
+            className="btn btn-secondary py-2 px-3 flex items-center justify-center gap-1 shrink-0 h-auto min-w-[4rem] w-fit"
           >
-            <ArrowLeft size={24} />
+            <ArrowLeft size={18} />
+            <span className="text-[12px] whitespace-nowrap leading-none">戻る</span>
           </button>
         </div>
         <div>
