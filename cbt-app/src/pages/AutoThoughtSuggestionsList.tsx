@@ -146,7 +146,7 @@ export function AutoThoughtSuggestionsList() {
         </div>
       </header>
 
-      <div className="w-[92%] max-w-2xl mx-auto pb-10">
+      <div className="pb-10" style={{ width: '92%', maxWidth: '42rem', margin: '0 auto' }}>
         {filteredItems.length === 0 ? (
           <div className="text-center py-12 text-gray-500 rounded-lg border border-dashed border-gray-200" style={{ backgroundColor: '#f9fafb' }}>
             {filter === 'bookmarked' ? (
