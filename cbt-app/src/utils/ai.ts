@@ -32,9 +32,9 @@ export async function generateTitleFromEvent(eventText: string): Promise<string>
     let title = response.text || '';
     title = title.replace(/^["'\[\]（）「」『』【】\s]+|["'\[\]（）「」『』【】\s]+$/g, '');
     return title.slice(0, 15);
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI Title Generation Error:', error);
-    return 'タイトル生成エラー';
+    return `エラー: ${error?.message?.slice(0, 30) || '不明なエラー'}`;
   }
 }
 
@@ -59,9 +59,9 @@ export async function generateTitleFromThought(thoughtText: string): Promise<str
     let title = response.text || '';
     title = title.replace(/^["'\[\]（）「」『』【】\s]+|["'\[\]（）「」『』【】\s]+$/g, '');
     return title.slice(0, 15);
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI Title Generation Error:', error);
-    return 'タイトル生成エラー';
+    return `エラー: ${error?.message?.slice(0, 30) || '不明なエラー'}`;
   }
 }
 
@@ -83,8 +83,8 @@ export async function extractFactsFromEvent(eventText: string): Promise<string> 
     });
     
     return (response.text || '').trim();
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI Fact Extraction Error:', error);
-    return '事実抽出エラー';
+    return `抽出エラー: ${error?.message?.slice(0, 30) || '不明なエラー'}`;
   }
 }
