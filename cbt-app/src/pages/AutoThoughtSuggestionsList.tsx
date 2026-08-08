@@ -166,7 +166,7 @@ export function AutoThoughtSuggestionsList() {
             {filteredItems.map((item) => (
               <div 
                 key={item.thought.id} 
-                className="bg-white/95 backdrop-blur-sm border-2 border-white/50 p-5 rounded-xl shadow-md hover:shadow-lg transition-all relative group"
+                className="bg-white border-2 border-indigo-50 p-5 rounded-xl shadow-md hover:shadow-lg transition-all relative group"
               >
                 <div className="flex justify-between items-start mb-3 gap-4">
                   <p className="text-gray-900 text-base font-bold leading-relaxed pt-1 flex items-start gap-1.5">
