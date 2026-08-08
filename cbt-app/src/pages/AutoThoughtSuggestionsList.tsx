@@ -146,9 +146,9 @@ export function AutoThoughtSuggestionsList() {
         </div>
       </header>
 
-      <div className="px-6 max-w-2xl mx-auto">
+      <div className="w-[92%] max-w-2xl mx-auto pb-10">
         {filteredItems.length === 0 ? (
-          <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
+          <div className="text-center py-12 text-gray-500 rounded-lg border border-dashed border-gray-200" style={{ backgroundColor: '#f9fafb' }}>
             {filter === 'bookmarked' ? (
               <>
                 <Star size={32} className="mx-auto mb-3 text-gray-300" />
@@ -166,7 +166,8 @@ export function AutoThoughtSuggestionsList() {
             {filteredItems.map((item) => (
               <div 
                 key={item.thought.id} 
-                className="bg-white border-2 border-indigo-50 p-5 rounded-xl shadow-md hover:shadow-lg transition-all relative group"
+                className="border-2 border-indigo-100 p-5 rounded-xl shadow-md hover:shadow-lg transition-all relative group"
+                style={{ backgroundColor: '#ffffff', color: '#111827' }}
               >
                 <div className="flex justify-between items-start mb-3 gap-4">
                   <p className="text-gray-900 text-base font-bold leading-relaxed pt-1 flex items-start gap-1.5">
