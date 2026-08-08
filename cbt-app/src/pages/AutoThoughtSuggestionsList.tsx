@@ -146,7 +146,7 @@ export function AutoThoughtSuggestionsList() {
         </div>
       </header>
 
-      <div className="px-4">
+      <div className="px-6 max-w-2xl mx-auto">
         {filteredItems.length === 0 ? (
           <div className="text-center py-12 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-200">
             {filter === 'bookmarked' ? (
@@ -166,11 +166,12 @@ export function AutoThoughtSuggestionsList() {
             {filteredItems.map((item) => (
               <div 
                 key={item.thought.id} 
-                className="bg-white border border-gray-100 p-4 rounded-xl shadow-sm hover:shadow-md transition-all relative group"
+                className="bg-white/95 backdrop-blur-sm border-2 border-white/50 p-5 rounded-xl shadow-md hover:shadow-lg transition-all relative group"
               >
-                <div className="flex justify-between items-start mb-2 gap-4">
-                  <p className="text-gray-800 text-base font-medium leading-relaxed pt-1">
-                    {item.thought.text}
+                <div className="flex justify-between items-start mb-3 gap-4">
+                  <p className="text-gray-900 text-base font-bold leading-relaxed pt-1 flex items-start gap-1.5">
+                    <span className="text-blue-500 shrink-0 mt-0.5">◆</span>
+                    <span>{item.thought.text}</span>
                   </p>
                   <button
                     onClick={() => toggleBookmark(item)}

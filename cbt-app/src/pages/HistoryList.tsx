@@ -80,19 +80,12 @@ export function HistoryList() {
                 className="p-4 border border-gray-100 rounded-lg bg-white hover:bg-gray-50 transition-colors flex justify-between items-center group shadow-sm relative overflow-hidden"
               >
                 <div className="flex flex-col overflow-hidden w-full pr-12">
-                  <span className="font-bold text-gray-800 text-sm truncate pr-2 mb-1">
+                  <span className="font-bold text-gray-800 text-sm truncate pr-2 mb-2">
                     No.{history.length - index} | {item.title || '(無題)'}
                   </span>
-                  
-                  {/* 一部の内容をプレビュー表示 */}
-                  <p className="text-xs text-gray-500 truncate mb-2 pr-2">
-                    {item.type === 'autoThoughtCatch' 
-                      ? (item.step1_fact || item.step0_event || '未入力') 
-                      : (item.step1_autoThought || '未入力')}
-                  </p>
 
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
+                    <span className="text-xs text-gray-400 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full w-fit">
                       <Calendar size={12} />
                       {formatDate(item.createdAt || item.updatedAt)}
                     </span>
