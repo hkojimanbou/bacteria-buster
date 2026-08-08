@@ -5,6 +5,7 @@ import { AutoThoughtCatch } from './pages/AutoThoughtCatch';
 import { CognitiveRestructuring } from './pages/CognitiveRestructuring';
 import { HistoryList } from './pages/HistoryList';
 import { TrashList } from './pages/TrashList';
+import { AutoThoughtSuggestionsList } from './pages/AutoThoughtSuggestionsList';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
             <Route path="/training/auto-thought/:id" element={<AutoThoughtCatch />} />
             <Route path="/training/cognitive" element={<CognitiveRestructuring />} />
             <Route path="/training/cognitive/:id" element={<CognitiveRestructuring />} />
+            <Route path="/history/auto-thought-suggestions" element={<AutoThoughtSuggestionsList />} />
             <Route path="/history/:type" element={<HistoryList />} />
             <Route path="/trash" element={<TrashList />} />
           </Routes>

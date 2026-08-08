@@ -10,6 +10,12 @@ export interface BaseTrainingData {
   deletedAt?: string;
 }
 
+export interface AISuggestedThought {
+  id: string; // 一意のID (UUIDやタイムスタンプベース)
+  text: string;
+  isBookmarked: boolean;
+}
+
 // 自動思考キャッチトレーニングLv.1
 export interface AutoThoughtCatchData extends BaseTrainingData {
   type: 'autoThoughtCatch';
@@ -20,7 +26,8 @@ export interface AutoThoughtCatchData extends BaseTrainingData {
   step4_interpretation: string;
   step5_action: string;
   nrs_score: number | null; // 0-10
-  ai_suggested_thoughts?: string[]; // AIが提案した自動思考案
+  ai_suggested_thoughts?: string[]; // (レガシー) 古い文字列配列
+  ai_thoughts?: AISuggestedThought[]; // (新規) ブックマーク状態を持ったオブジェクト配列
 }
 
 // 認知再構成法 Lv.1

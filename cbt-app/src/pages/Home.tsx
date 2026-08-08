@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BrainCircuit, BookOpen, ChevronRight, PlusCircle, LogOut, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
-import { getTrainingCountByType, migrateLocalDataToFirestore, getAllTrainings, saveTraining } from '../utils/storage';
+import { BrainCircuit, BookOpen, ChevronRight, PlusCircle, LogOut, Sparkles, Loader2, Lightbulb } from 'lucide-react';
+import { getTrainingCountByType, migrateLocalDataToFirestore, getAllTrainings, saveTraining, generateId } from '../utils/storage';
 import { suggestAutoThoughts } from '../utils/ai';
 import { useAuth } from '../hooks/useAuth';
 import type { AutoThoughtCatchData } from '../types';
@@ -11,10 +11,7 @@ export function Home() {
   const [counts, setCounts] = useState({ autoThought: 0, cognitive: 0 });
   const [isMigrating, setIsMigrating] = useState(false);
   const [localDataCount, setLocalDataCount] = useState(0);
-  
-  // AI分析用
-  const [latestAutoThought, setLatestAutoThought] = useState<AutoThoughtCatchData | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isGeneratingBackground, setIsGeneratingBackground] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -29,7 +26,7 @@ export function Home() {
   }, [user]);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchDataAndProcess = async () => {
       if (!user) return;
       
       try {
@@ -44,9 +41,8 @@ export function Home() {
         
         setCounts({ autoThought: autoThoughts.length, cognitive: cognitves.length });
         
-        if (autoThoughts.length > 0) {
-          setLatestAutoThought(autoThoughts[0]); // 最新の1件
-        }
+        // バックグラウンドで未生成のものを一括生成
+        processUnanalyzedData(autoThoughts, user.uid);
 
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -55,36 +51,70 @@ export function Home() {
       }
     };
 
-    fetchData();
+    fetchDataAndProcess();
   }, [user]);
 
-  const handleAnalyzeAutoThought = async () => {
-    if (!user || !latestAutoThought) return;
+  const processUnanalyzedData = async (autoThoughts: AutoThoughtCatchData[], uid: string) => {
+    // まだ新しい形式の ai_thoughts が生成されていないものを抽出
+    const unanalyzed = autoThoughts.filter(t => !t.ai_thoughts || t.ai_thoughts.length === 0);
     
-    setIsAnalyzing(true);
-    try {
-      const suggestions = await suggestAutoThoughts(
-        latestAutoThought.step0_event || '',
-        latestAutoThought.step1_fact || '',
-        latestAutoThought.step2_emotions || [],
-        latestAutoThought.step3_physicalReactions || '',
-        latestAutoThought.step5_action || '' // 過去の記録からの推定なので行動も加味
-      );
-      
-      const updatedData = {
-        ...latestAutoThought,
-        ai_suggested_thoughts: suggestions,
-        updatedAt: new Date().toISOString()
-      };
-      
-      await saveTraining(user.uid, updatedData);
-      setLatestAutoThought(updatedData);
-    } catch (error) {
-      console.error('Analysis failed:', error);
-      alert('分析に失敗しました。');
-    } finally {
-      setIsAnalyzing(false);
+    // もし古い文字列配列 (ai_suggested_thoughts) があれば、それを新しい形式に変換して保存するだけ
+    for (const t of unanalyzed) {
+      if (t.ai_suggested_thoughts && t.ai_suggested_thoughts.length > 0) {
+        const migratedData: AutoThoughtCatchData = {
+          ...t,
+          ai_thoughts: t.ai_suggested_thoughts.map(text => ({
+            id: generateId(),
+            text,
+            isBookmarked: false
+          }))
+        };
+        await saveTraining(uid, migratedData);
+      }
     }
+
+    // 本当に未生成（文字列配列すらない）のもの
+    const trulyUnanalyzed = autoThoughts.filter(
+      t => (!t.ai_thoughts || t.ai_thoughts.length === 0) && (!t.ai_suggested_thoughts || t.ai_suggested_thoughts.length === 0)
+    );
+
+    if (trulyUnanalyzed.length === 0) return;
+
+    setIsGeneratingBackground(true);
+    
+    // 直列で順番にAIリクエストを送る（レートリミット対策）
+    for (const training of trulyUnanalyzed) {
+      try {
+        const suggestions = await suggestAutoThoughts(
+          training.step0_event || '',
+          training.step1_fact || '',
+          training.step2_emotions || [],
+          training.step3_physicalReactions || '',
+          training.step5_action || ''
+        );
+        
+        const ai_thoughts = suggestions.map(text => ({
+          id: generateId(),
+          text,
+          isBookmarked: false
+        }));
+
+        const updatedData = {
+          ...training,
+          ai_thoughts,
+          updatedAt: new Date().toISOString()
+        };
+        
+        await saveTraining(uid, updatedData);
+        
+        // APIの連続呼び出しを避けるため少し待機
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      } catch (err) {
+        console.error('Background analysis failed for ID:', training.id, err);
+      }
+    }
+    
+    setIsGeneratingBackground(false);
   };
 
   if (loading) {
@@ -170,58 +200,33 @@ export function Home() {
           </Link>
         </div>
       </div>
-      
-      {/* AI自動思考分析BOX */}
-      {latestAutoThought && (
-        <div className="glass-card mb-8 border-2 border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="bg-indigo-100 p-1.5 rounded-full text-indigo-600">
-              <Sparkles size={20} />
-            </div>
-            <h2 className="font-bold text-gray-800 text-lg">自動思考を分析</h2>
-          </div>
-          
-          <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-            最新の記録「<span className="font-semibold text-gray-800">{latestAutoThought.title || '無題'}</span>」から、あなたの心の奥底に隠れている自動思考（思い込みのクセ）をAIが分析して提案します。振り返りの参考にしてみてください。
-          </p>
-
-          {latestAutoThought.ai_suggested_thoughts && latestAutoThought.ai_suggested_thoughts.length > 0 ? (
-            <div className="bg-white rounded-lg p-4 border border-indigo-100 shadow-sm">
-              <p className="text-xs font-bold text-indigo-500 mb-3 flex items-center gap-1.5">
-                <CheckCircle2 size={14} /> AIからの提案
-              </p>
-              <ul className="space-y-3">
-                {latestAutoThought.ai_suggested_thoughts.map((thought, idx) => (
-                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2 leading-relaxed">
-                    <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
-                    <span>{thought}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <button 
-              onClick={handleAnalyzeAutoThought}
-              disabled={isAnalyzing}
-              className="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white border-none py-3 shadow-md flex items-center justify-center gap-2 transition-all"
-            >
-              {isAnalyzing ? (
-                <><Loader2 size={18} className="animate-spin" /> 分析中...</>
-              ) : (
-                <><Sparkles size={18} /> 分析を実行する</>
-              )}
-            </button>
-          )}
-        </div>
-      )}
 
       <div className="glass-card">
-        <h2 className="heading-2 flex items-center gap-2 border-b border-gray-100 pb-3 mb-4">
-          <BookOpen size={20} className="text-indigo-500" />
-          過去の記録
-        </h2>
+        <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4">
+          <h2 className="heading-2 flex items-center gap-2">
+            <BookOpen size={20} className="text-indigo-500" />
+            過去の記録
+          </h2>
+          {isGeneratingBackground && (
+            <span className="text-xs text-indigo-500 flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-full animate-pulse">
+              <Loader2 size={12} className="animate-spin" /> AI分析中...
+            </span>
+          )}
+        </div>
         
         <div className="flex flex-col gap-4">
+          <Link to="/history/auto-thought-suggestions" className="btn btn-primary justify-between p-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 border-none shadow-md">
+            <div className="flex flex-col items-start text-left">
+              <span className="font-bold text-lg flex items-center gap-2">
+                <Lightbulb size={20} /> 自動思考案リスト
+              </span>
+              <span className="text-sm text-blue-50 font-normal mt-1">
+                AIが分析したあなたの思考のクセを振り返る
+              </span>
+            </div>
+            <ChevronRight size={24} />
+          </Link>
+
           <Link to="/history/auto-thought" className="btn btn-primary justify-between p-4 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-none">
             <div className="flex flex-col items-start text-left">
               <span className="font-bold text-lg">過去の自動思考キャッチトレーニング Lv.1</span>
