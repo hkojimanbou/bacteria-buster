@@ -6,6 +6,8 @@ export interface BaseTrainingData {
   createdAt: string; // ISO String
   updatedAt: string;
   title: string;
+  isDeleted?: boolean;
+  deletedAt?: string;
 }
 
 // 自動思考キャッチトレーニングLv.1

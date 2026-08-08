@@ -154,6 +154,16 @@ export function Home() {
             </div>
             <ChevronRight size={24} />
           </Link>
+          
+          <Link to="/trash" className="btn btn-secondary justify-between p-4 mt-2 bg-gray-50 hover:bg-gray-100 border border-gray-200">
+            <div className="flex flex-col items-start text-left">
+              <span className="font-bold text-gray-700">ごみ箱</span>
+              <span className="text-xs text-gray-500 font-normal mt-1">
+                削除した記録の復元・完全削除
+              </span>
+            </div>
+            <ChevronRight size={20} className="text-gray-400" />
+          </Link>
         </div>
       </div>
     </div>

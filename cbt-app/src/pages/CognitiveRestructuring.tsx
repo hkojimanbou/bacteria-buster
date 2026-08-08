@@ -249,7 +249,8 @@ ${formData.step9_cognitiveDistortions?.length ? formData.step9_cognitiveDistorti
         <div className="form-group">
           <label className="form-label text-lg flex flex-col items-start gap-1">
             <span>STEP1 自動思考</span>
-            <PopoverGuide content="感情を動かす自動思考を書きます。「〜べき」「〜べきでない」「きっと〜に違いない」「〜だったらどうしよう」という言い回しを使うと書きやすいです。" />
+            <span className="text-sm font-normal text-gray-500">感情を動かす自動思考を書く</span>
+            <PopoverGuide content="「〜べき」「〜べきでない」「きっと〜に違いない」「〜だったらどうしよう」という言い回しを使うと書きやすいです。" />
           </label>
           <textarea
             className="form-textarea"
@@ -274,17 +275,26 @@ ${formData.step9_cognitiveDistortions?.length ? formData.step9_cognitiveDistorti
         <div className="space-y-6">
           <h3 className="heading-2 text-lg border-b pb-2 flex flex-col items-start gap-1">
             <span>STEP3 感情と行動の把握</span>
-            <PopoverGuide content="その思考が頭をよぎった時に感じている感情と、とってしまう行動を選びます。" />
           </h3>
           <SelectWithAdd
-            label="3-1 感情の把握"
+            label={
+              <span className="flex flex-col items-start gap-1">
+                <span>3-1 感情の把握</span>
+                <span className="text-sm font-normal text-gray-500">その思考が頭をよぎったときにかんじている感情</span>
+              </span>
+            }
             options={INITIAL_EMOTIONS_3}
             selectedValues={formData.step3_1_emotions || []}
             onChange={(vals) => handleChange('step3_1_emotions', vals)}
             showDictionary={true}
           />
           <SelectWithAdd
-            label="3-2 行動の把握"
+            label={
+              <span className="flex flex-col items-start gap-1">
+                <span>3-2 行動の把握</span>
+                <span className="text-sm font-normal text-gray-500">その思考が頭をよぎったときにとってしまう行動</span>
+              </span>
+            }
             options={INITIAL_ACTIONS_3}
             selectedValues={formData.step3_2_actions || []}
             onChange={(vals) => handleChange('step3_2_actions', vals)}
@@ -295,7 +305,8 @@ ${formData.step9_cognitiveDistortions?.length ? formData.step9_cognitiveDistorti
         <div className="form-group">
           <label className="form-label text-lg flex flex-col items-start gap-1">
             <span>STEP4 根拠</span>
-            <PopoverGuide content="その考えが正しいことを裏付ける根拠を思いつく限り書きます。「なぜならば〜だから」の形式でサンドイッチして書くと書きやすいです。" />
+            <span className="text-sm font-normal text-gray-500">その考えが正しいことを裏付ける根拠を思いつく限り記入</span>
+            <PopoverGuide content="「なぜならば〜だから」の形式でサンドイッチして書くと書きやすいです。" />
           </label>
           <textarea
             className="form-textarea"
@@ -308,7 +319,8 @@ ${formData.step9_cognitiveDistortions?.length ? formData.step9_cognitiveDistorti
         <div className="form-group">
           <label className="form-label text-lg flex flex-col items-start gap-1">
             <span>STEP5 リライト</span>
-            <PopoverGuide content="STEP1で書いた文章を「部分否定文」に書き換えます。いきなり部分否定文にするのが難しい場合は、まず「否定文（反対の主張）」に直してください。その後、文頭に「現時点では」「その時点では」「その状況では」といった枕詞をつけると部分否定文が完成します。" />
+            <span className="text-sm font-normal text-gray-500">STEP1で書いた文章を「部分否定文」に書き換える</span>
+            <PopoverGuide content="いきなり部分否定文にするのが難しい場合は、まず「否定文（反対の主張）」に直してください。その後、文頭に「現時点では」「その時点では」「その状況では」といった枕詞をつけると部分否定文が完成します。" />
           </label>
           <textarea
             className="form-textarea"
@@ -322,11 +334,9 @@ ${formData.step9_cognitiveDistortions?.length ? formData.step9_cognitiveDistorti
         <div className="form-group">
           <label className="form-label text-lg flex flex-col items-start gap-1">
             <span>STEP6 反証</span>
-            <PopoverGuide content="STEP5で作った部分否定文が、仮に「正しい（現実的）」としたら、それを示す証拠（反証）を思いつく限り書きます。想像を膨らませすぎた根拠のない妄想や断定は避け、「〜かもしれない」「〜の可能性がある」といった含みを持たせた表現を使うのがコツです。過去の経験など、わずかでも根拠がある可能性を探ってください。" />
+            <span className="text-sm font-normal text-gray-500">仮にその否定文が正しい（現実的）とした場合の根拠を思いつく限り記入</span>
+            <PopoverGuide content="想像を膨らませすぎた根拠のない妄想や断定は避け、「〜かもしれない」「〜の可能性がある」といった含みを持たせた表現を使うのがコツです。過去の経験など、わずかでも根拠がある可能性を探ってください。" />
           </label>
-          <p className="text-muted mb-2 text-sm">
-            仮にその否定文の方が、「現時点では」「その時点では」「その状況では」正しい（現実的）としたら、それを示す根拠を書いてください。（思いつく限り書いてください。）
-          </p>
           <textarea
             className="form-textarea"
             value={formData.step6_counterEvidence || ''}

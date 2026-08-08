@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ChevronRight, Calendar, BookOpen } from 'lucide-react';
-import { getAllTrainings } from '../utils/storage';
+import { ArrowLeft, ChevronRight, Calendar, BookOpen, Trash2 } from 'lucide-react';
+import { getAllTrainings, moveToTrash } from '../utils/storage';
 import { useAuth } from '../hooks/useAuth';
 import type { TrainingData } from '../types';
 
@@ -29,6 +29,15 @@ export function HistoryList() {
     
     fetchHistory();
   }, [type, user]);
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    if (!user) return;
+    if (window.confirm('この記録をごみ箱に移動しますか？')) {
+      await moveToTrash(user.uid, id);
+      setHistory(history.filter(t => t.id !== id));
+    }
+  };
 
   const formatDate = (isoString: string) => {
     const d = new Date(isoString);
@@ -68,20 +77,37 @@ export function HistoryList() {
               <Link 
                 to={`${linkPrefix}${item.id}`} 
                 key={item.id} 
-                className="p-3 border border-gray-100 rounded-lg bg-white hover:bg-gray-50 transition-colors flex justify-between items-center group shadow-sm"
+                className="p-4 border border-gray-100 rounded-lg bg-white hover:bg-gray-50 transition-colors flex justify-between items-center group shadow-sm relative overflow-hidden"
               >
-                <div className="flex flex-col overflow-hidden w-full">
-                  <span className="font-semibold text-gray-800 text-sm truncate pr-2">
+                <div className="flex flex-col overflow-hidden w-full pr-12">
+                  <span className="font-bold text-gray-800 text-sm truncate pr-2 mb-1">
                     No.{history.length - index} | {item.title || '(無題)'}
                   </span>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                  
+                  {/* 一部の内容をプレビュー表示 */}
+                  <p className="text-xs text-gray-500 truncate mb-2 pr-2">
+                    {item.type === 'autoThoughtCatch' 
+                      ? (item.step1_fact || item.step0_event || '未入力') 
+                      : (item.step1_autoThought || '未入力')}
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-400 flex items-center gap-1 bg-gray-100 px-2 py-0.5 rounded-full">
                       <Calendar size={12} />
                       {formatDate(item.createdAt || item.updatedAt)}
                     </span>
                   </div>
                 </div>
-                <ChevronRight size={18} className="text-gray-300 group-hover:text-indigo-500 shrink-0" />
+                
+                <div className="flex items-center h-full absolute right-3 gap-2">
+                  <button 
+                    onClick={(e) => handleDelete(e, item.id)}
+                    className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors z-10"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  <ChevronRight size={20} className="text-gray-300 group-hover:text-indigo-500 shrink-0" />
+                </div>
               </Link>
             ))}
           </div>

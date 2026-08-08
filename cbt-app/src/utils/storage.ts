@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, deleteDoc, updateDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import type { TrainingData } from '../types';
 
@@ -36,12 +36,49 @@ export const getAllTrainings = async (uid: string): Promise<TrainingData[]> => {
   const snapshot = await getDocs(colRef);
   const trainings: TrainingData[] = [];
   snapshot.forEach((docSnap) => {
-    trainings.push(docSnap.data() as TrainingData);
+    const data = docSnap.data() as TrainingData;
+    if (!data.isDeleted) {
+      trainings.push(data);
+    }
   });
   return trainings.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+};
+
+export const getTrashTrainings = async (uid: string): Promise<TrainingData[]> => {
+  const colRef = collection(db, 'users', uid, 'trainings');
+  const snapshot = await getDocs(colRef);
+  const trainings: TrainingData[] = [];
+  snapshot.forEach((docSnap) => {
+    const data = docSnap.data() as TrainingData;
+    if (data.isDeleted) {
+      trainings.push(data);
+    }
+  });
+  return trainings.sort((a, b) => new Date(b.deletedAt || b.updatedAt).getTime() - new Date(a.deletedAt || a.updatedAt).getTime());
 };
 
 export const getTrainingCountByType = async (uid: string, type: 'autoThoughtCatch' | 'cognitiveRestructuring'): Promise<number> => {
   const trainings = await getAllTrainings(uid);
   return trainings.filter(t => t.type === type).length;
+};
+
+export const moveToTrash = async (uid: string, id: string) => {
+  const docRef = doc(db, 'users', uid, 'trainings', id);
+  await updateDoc(docRef, {
+    isDeleted: true,
+    deletedAt: new Date().toISOString()
+  });
+};
+
+export const restoreFromTrash = async (uid: string, id: string) => {
+  const docRef = doc(db, 'users', uid, 'trainings', id);
+  await updateDoc(docRef, {
+    isDeleted: false,
+    deletedAt: null
+  });
+};
+
+export const permanentlyDelete = async (uid: string, id: string) => {
+  const docRef = doc(db, 'users', uid, 'trainings', id);
+  await deleteDoc(docRef);
 };
