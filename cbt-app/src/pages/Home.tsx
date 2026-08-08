@@ -1,14 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BrainCircuit, BookOpen, ChevronRight, PlusCircle, LogOut } from 'lucide-react';
-import { getTrainingCountByType, migrateLocalDataToFirestore } from '../utils/storage';
+import { BrainCircuit, BookOpen, ChevronRight, PlusCircle, LogOut, Sparkles, Loader2, CheckCircle2 } from 'lucide-react';
+import { getTrainingCountByType, migrateLocalDataToFirestore, getAllTrainings, saveTraining } from '../utils/storage';
+import { suggestAutoThoughts } from '../utils/ai';
 import { useAuth } from '../hooks/useAuth';
+import type { AutoThoughtCatchData } from '../types';
 
 export function Home() {
   const { user, loading, loginWithGoogle, logout } = useAuth();
   const [counts, setCounts] = useState({ autoThought: 0, cognitive: 0 });
   const [isMigrating, setIsMigrating] = useState(false);
   const [localDataCount, setLocalDataCount] = useState(0);
+  
+  // AI分析用
+  const [latestAutoThought, setLatestAutoThought] = useState<AutoThoughtCatchData | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -31,9 +37,17 @@ export function Home() {
         // スマホなどのローカルデータをFirestoreに移行
         await migrateLocalDataToFirestore(user.uid);
         
-        const autoThought = await getTrainingCountByType(user.uid, 'autoThoughtCatch');
-        const cognitive = await getTrainingCountByType(user.uid, 'cognitiveRestructuring');
-        setCounts({ autoThought, cognitive });
+        const allTrainings = await getAllTrainings(user.uid);
+        
+        const autoThoughts = allTrainings.filter(t => t.type === 'autoThoughtCatch') as AutoThoughtCatchData[];
+        const cognitves = allTrainings.filter(t => t.type === 'cognitiveRestructuring');
+        
+        setCounts({ autoThought: autoThoughts.length, cognitive: cognitves.length });
+        
+        if (autoThoughts.length > 0) {
+          setLatestAutoThought(autoThoughts[0]); // 最新の1件
+        }
+
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {
@@ -43,6 +57,35 @@ export function Home() {
 
     fetchData();
   }, [user]);
+
+  const handleAnalyzeAutoThought = async () => {
+    if (!user || !latestAutoThought) return;
+    
+    setIsAnalyzing(true);
+    try {
+      const suggestions = await suggestAutoThoughts(
+        latestAutoThought.step0_event || '',
+        latestAutoThought.step1_fact || '',
+        latestAutoThought.step2_emotions || [],
+        latestAutoThought.step3_physicalReactions || '',
+        latestAutoThought.step5_action || '' // 過去の記録からの推定なので行動も加味
+      );
+      
+      const updatedData = {
+        ...latestAutoThought,
+        ai_suggested_thoughts: suggestions,
+        updatedAt: new Date().toISOString()
+      };
+      
+      await saveTraining(user.uid, updatedData);
+      setLatestAutoThought(updatedData);
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      alert('分析に失敗しました。');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center">Loading...</div>;
@@ -127,6 +170,50 @@ export function Home() {
           </Link>
         </div>
       </div>
+      
+      {/* AI自動思考分析BOX */}
+      {latestAutoThought && (
+        <div className="glass-card mb-8 border-2 border-indigo-100 bg-gradient-to-br from-white to-indigo-50/30">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="bg-indigo-100 p-1.5 rounded-full text-indigo-600">
+              <Sparkles size={20} />
+            </div>
+            <h2 className="font-bold text-gray-800 text-lg">自動思考を分析</h2>
+          </div>
+          
+          <p className="text-sm text-gray-600 mb-4 leading-relaxed">
+            最新の記録「<span className="font-semibold text-gray-800">{latestAutoThought.title || '無題'}</span>」から、あなたの心の奥底に隠れている自動思考（思い込みのクセ）をAIが分析して提案します。振り返りの参考にしてみてください。
+          </p>
+
+          {latestAutoThought.ai_suggested_thoughts && latestAutoThought.ai_suggested_thoughts.length > 0 ? (
+            <div className="bg-white rounded-lg p-4 border border-indigo-100 shadow-sm">
+              <p className="text-xs font-bold text-indigo-500 mb-3 flex items-center gap-1.5">
+                <CheckCircle2 size={14} /> AIからの提案
+              </p>
+              <ul className="space-y-3">
+                {latestAutoThought.ai_suggested_thoughts.map((thought, idx) => (
+                  <li key={idx} className="text-sm text-gray-700 flex items-start gap-2 leading-relaxed">
+                    <span className="text-indigo-400 mt-0.5 shrink-0">•</span>
+                    <span>{thought}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <button 
+              onClick={handleAnalyzeAutoThought}
+              disabled={isAnalyzing}
+              className="w-full btn bg-indigo-600 hover:bg-indigo-700 text-white border-none py-3 shadow-md flex items-center justify-center gap-2 transition-all"
+            >
+              {isAnalyzing ? (
+                <><Loader2 size={18} className="animate-spin" /> 分析中...</>
+              ) : (
+                <><Sparkles size={18} /> 分析を実行する</>
+              )}
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="glass-card">
         <h2 className="heading-2 flex items-center gap-2 border-b border-gray-100 pb-3 mb-4">

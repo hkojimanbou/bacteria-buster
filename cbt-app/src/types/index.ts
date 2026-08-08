@@ -20,6 +20,7 @@ export interface AutoThoughtCatchData extends BaseTrainingData {
   step4_interpretation: string;
   step5_action: string;
   nrs_score: number | null; // 0-10
+  ai_suggested_thoughts?: string[]; // AIが提案した自動思考案
 }
 
 // 認知再構成法 Lv.1
