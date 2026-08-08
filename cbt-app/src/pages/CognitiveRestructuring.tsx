@@ -7,7 +7,7 @@ import { TrainingGuide } from '../components/TrainingGuide';
 import { CheckboxList, type CheckboxOption } from '../components/CheckboxList';
 import { AITitleGenerator } from '../components/AITitleGenerator';
 import { useAutoSave } from '../hooks/useAutoSave';
-import { saveTraining, getTrainingCountByType, getAllTrainings } from '../utils/storage';
+import { saveTraining, getTrainingCountByType, getAllTrainings, generateId } from '../utils/storage';
 import { generateTitleFromThought } from '../utils/ai';
 import { useAuth } from '../hooks/useAuth';
 import type { CognitiveRestructuringData, TrainingData } from '../types';
@@ -176,7 +176,8 @@ ${formData.step9_cognitiveDistortions?.length ? formData.step9_cognitiveDistorti
       finalTitle = sourceText ? await generateTitleFromThought(sourceText) : '無題';
     }
 
-    const finalData = {
+    const finalData: CognitiveRestructuringData = {
+      id: formData.id || generateId(),
       ...formData,
       title: finalTitle,
       type: 'cognitiveRestructuring' as const,
