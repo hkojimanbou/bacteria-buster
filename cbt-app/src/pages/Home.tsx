@@ -186,17 +186,21 @@ export function Home() {
           <Link to="/training/auto-thought" className="btn btn-primary justify-between p-4 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-none">
             <div className="flex flex-col items-start text-left">
               <span className="font-bold text-lg">自動思考キャッチトレーニング Lv.1</span>
-
+              <span className="text-sm text-indigo-100 font-normal mt-1 leading-snug">
+                ざわついた時の「自動思考」に気づき、事実・解釈・感情・身体反応・行動に切分ける練習。
+              </span>
             </div>
-            <ChevronRight size={24} />
+            <ChevronRight size={24} className="shrink-0 ml-2" />
           </Link>
 
           <Link to="/training/cognitive" className="btn btn-primary justify-between p-4 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 border-none">
             <div className="flex flex-col items-start text-left">
               <span className="font-bold text-lg">認知再構成法 Lv.1</span>
-
+              <span className="text-sm text-emerald-100 font-normal mt-1 leading-snug">
+                自動思考を深掘りし、現実的で柔軟な考え方に切り替える練習。
+              </span>
             </div>
-            <ChevronRight size={24} />
+            <ChevronRight size={24} className="shrink-0 ml-2" />
           </Link>
         </div>
       </div>
