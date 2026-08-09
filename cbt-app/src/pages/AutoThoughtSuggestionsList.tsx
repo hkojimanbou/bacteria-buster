@@ -93,7 +93,7 @@ export function AutoThoughtSuggestionsList() {
 
   const handleDelete = async (item: SuggestionItem) => {
     if (!user) return;
-    if (!window.confirm('この自動思考案をリストから削除しますか？\n※元の記録自体は削除されません')) return;
+    if (!window.confirm('この思考パターンを削除しますか？\n※元の記録自体は削除されません')) return;
     
     try {
       // 画面のStateを先に更新
@@ -144,7 +144,7 @@ export function AutoThoughtSuggestionsList() {
         <div>
           <h1 className="font-bold text-gray-900 text-xl flex items-center gap-2">
             <Lightbulb size={24} className="text-blue-500" />
-            自動思考案リスト
+            私の思考パターン
           </h1>
           <p className="text-xs text-gray-500 mt-1">
             AIが過去の記録から分析した、あなたの思考のクセの候補です。
@@ -179,12 +179,12 @@ export function AutoThoughtSuggestionsList() {
             {filter === 'bookmarked' ? (
               <>
                 <Star size={32} className="mx-auto mb-3 text-gray-300" />
-                <p>ブックマークされた<br/>自動思考案はありません。</p>
+                <p>ブックマークされた<br/>思考パターンはありません。</p>
               </>
             ) : (
               <>
                 <Lightbulb size={32} className="mx-auto mb-3 text-gray-300" />
-                <p>まだ自動思考案がありません。<br/>新しい記録を作成するとAIが分析します。</p>
+                <p>まだ思考パターンがありません。<br/>新しい記録を作成するとAIが分析します。</p>
               </>
             )}
           </div>

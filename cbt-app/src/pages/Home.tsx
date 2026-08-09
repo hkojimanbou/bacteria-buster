@@ -222,13 +222,13 @@ export function Home() {
           <Link to="/history/auto-thought-suggestions" className="btn btn-primary justify-between p-4 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 border-none shadow-md">
             <div className="flex flex-col items-start text-left">
               <span className="font-bold text-lg flex items-center gap-2">
-                <Lightbulb size={20} /> 自動思考案リスト
+                <Lightbulb size={20} /> 私の思考パターン
               </span>
-              <span className="text-sm text-blue-50 font-normal mt-1">
+              <span className="text-sm text-blue-50 font-normal mt-1 leading-snug">
                 AIが分析したあなたの思考のクセを振り返る
               </span>
             </div>
-            <ChevronRight size={24} />
+            <ChevronRight size={24} className="shrink-0 ml-2" />
           </Link>
 
           <Link to="/history/auto-thought" className="btn btn-primary justify-between p-4 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 border-none">
